@@ -18,11 +18,17 @@ Render references: [Static sites](https://render.com/docs/static-sites), [defaul
 
 ### Complete workspace startup
 
-The Render build embeds all seven application layers into the initial HTML, preserving their execution order and separate classic-script scopes. Stylesheets have content-based filenames. This prevents separate script requests from leaving the basic seven-section screen behind or mixing application layers across releases. The workspace appears only after all 16 modules and 11 acting roles initialize. A startup error shows a retry message without clearing saved transactions.
+The Render build embeds all eight application layers, including the demo sign-in, into the initial HTML, preserving their execution order and separate classic-script scopes. Stylesheets have content-based filenames. This prevents separate script requests from leaving the basic seven-section screen behind or mixing application layers across releases. The sign-in page appears only after all 16 modules and 11 acting roles initialize. A startup error shows a retry message without clearing saved transactions.
 
 After pulling an update, deploy the latest `main` commit with the build and publish settings above. For an existing manually configured Render Static Site, the optional `Cache-Control: no-cache` header on `/*` must be added in the Render dashboard; changing `render.yaml` only updates services managed through a Blueprint. The bundled startup and versioned styles work independently of that header. Role filtering still intentionally limits the modules visible to each selected role.
 
 `npm test` includes a Node-based execution of the generated page, startup failures, storage recovery, all role views, and the connected transaction checks. These checks do not launch a browser or substitute for a visual inspection.
+
+## Demo sign-in
+
+The branded entry page offers all 11 workspaces. Choose **Use demo credentials**, select a workspace, then **Sign in to demo**. The public sample account is `demo@triveniwires.example` / `TriveniDemo`; it is a presentation convenience, not real authentication. Do not enter a company password. All existing role filters and connected records are retained.
+
+Demo access persists across refreshes within a tab through session storage. **Sign out** returns to the entry page without deleting transactions. If storage is unavailable, sign-in still works for the current page. The offline deliverable includes the same entry page. Production access still requires server-backed identity, session management and authorization.
 
 ## WhatsApp link preview
 

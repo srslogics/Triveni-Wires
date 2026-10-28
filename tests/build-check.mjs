@@ -11,9 +11,9 @@ for(const envKey of ['SITE_URL','RENDER_EXTERNAL_URL']){
  assert(html.includes('property="og:url" content="https://preview.example.com/"'));
  assert(html.includes('property="og:image:width" content="1200"'));
  assert(!/<script[^>]*\bsrc=/.test(html));
- assert.equal([...html.matchAll(/<script data-erp-script=/g)].length,7);
+ assert.equal([...html.matchAll(/<script data-erp-script=/g)].length,8);
  const styles=[...html.matchAll(/<link rel="stylesheet" href="([^"]+)">/g)];
- assert.equal(styles.length,4);
+ assert.equal(styles.length,5);
  for(const [,filename] of styles){
   const hash=createHash('sha256').update(readFileSync('dist/'+filename)).digest('hex').slice(0,12);
   assert(filename.endsWith(`.${hash}.css`));
