@@ -1,0 +1,10 @@
+import { cp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
+const configured=process.env.SITE_URL||process.env.RENDER_EXTERNAL_URL;
+if(process.env.RENDER&&!configured)throw new Error('Set SITE_URL to the full public HTTPS URL before deploying.');
+const url=new URL(configured||'http://localhost:8765');
+if(!['http:','https:'].includes(url.protocol)||url.username||url.password||url.search||url.hash||url.pathname!=='/')throw new Error('SITE_URL must be a plain HTTP(S) origin, without credentials, path, query or fragment.');
+if(configured&&url.protocol!=='https:')throw new Error('Use HTTPS for the public share URL.');
+await rm('dist',{recursive:true,force:true});await mkdir('dist',{recursive:true});await cp('public','dist',{recursive:true});
+let html=(await readFile('public/index.html','utf8')).replaceAll('__SITE_URL__',url.origin);
+await writeFile('dist/index.html',html);
+console.log(`Built dist. Link preview: ${url.origin}/assets/social-preview.jpg`);
