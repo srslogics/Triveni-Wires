@@ -11,6 +11,6 @@ services:
       - path: /*
         name: Referrer-Policy
         value: strict-origin-when-cross-origin
-      - path: /index.html
+      - path: /*
         name: Cache-Control
         value: no-cache

@@ -8,6 +8,6 @@
   },
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "node tests/full-check.cjs && node tests/control-check.cjs && node tests/visual-check.cjs && node tests/build-check.mjs"
+    "test": "node tests/full-check.cjs && node tests/control-check.cjs && node tests/visual-check.cjs && node tests/build-check.mjs && node tests/startup-check.cjs"
   }
 }

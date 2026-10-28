@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
 import {readFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
 for(const envKey of ['SITE_URL','RENDER_EXTERNAL_URL']){
  const env={...process.env,SITE_URL:'',RENDER_EXTERNAL_URL:'',[envKey]:'https://preview.example.com'};
  execFileSync(process.execPath,['scripts/build.mjs'],{env});
@@ -9,6 +10,14 @@ for(const envKey of ['SITE_URL','RENDER_EXTERNAL_URL']){
  assert(html.includes('property="og:image" content="https://preview.example.com/assets/social-preview.jpg"'));
  assert(html.includes('property="og:url" content="https://preview.example.com/"'));
  assert(html.includes('property="og:image:width" content="1200"'));
+ assert(!/<script[^>]*\bsrc=/.test(html));
+ assert.equal([...html.matchAll(/<script data-erp-script=/g)].length,7);
+ const styles=[...html.matchAll(/<link rel="stylesheet" href="([^"]+)">/g)];
+ assert.equal(styles.length,4);
+ for(const [,filename] of styles){
+  const hash=createHash('sha256').update(readFileSync('dist/'+filename)).digest('hex').slice(0,12);
+  assert(filename.endsWith(`.${hash}.css`));
+ }
  const jpeg=readFileSync('dist/assets/social-preview.jpg');assert.equal(jpeg.readUInt16BE(0),0xffd8);assert(jpeg.length<300000);
 }
 assert.throws(()=>execFileSync(process.execPath,['scripts/build.mjs'],{env:{...process.env,SITE_URL:'javascript:alert(1)'},stdio:'pipe'}));

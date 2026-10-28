@@ -16,6 +16,14 @@ Alternatively, use Render's **Blueprint** flow with the included `render.yaml`. 
 
 Render references: [Static sites](https://render.com/docs/static-sites), [default environment variables](https://render.com/docs/environment-variables), [Blueprint specification](https://render.com/docs/blueprint-spec).
 
+### Complete workspace startup
+
+The Render build embeds all seven application layers into the initial HTML, preserving their execution order and separate classic-script scopes. Stylesheets have content-based filenames. This prevents separate script requests from leaving the basic seven-section screen behind or mixing application layers across releases. The workspace appears only after all 16 modules and 11 acting roles initialize. A startup error shows a retry message without clearing saved transactions.
+
+After pulling an update, deploy the latest `main` commit with the build and publish settings above. For an existing manually configured Render Static Site, the optional `Cache-Control: no-cache` header on `/*` must be added in the Render dashboard; changing `render.yaml` only updates services managed through a Blueprint. The bundled startup and versioned styles work independently of that header. Role filtering still intentionally limits the modules visible to each selected role.
+
+`npm test` includes a Node-based execution of the generated page, startup failures, storage recovery, all role views, and the connected transaction checks. These checks do not launch a browser or substitute for a visual inspection.
+
 ## WhatsApp link preview
 
 Share the **deployed Render HTTPS link**, not the GitHub repository link or localhost. The build inserts the public URL into the initial HTML's Open Graph tags. It includes a branded 1200 × 630 JPEG, title, description, image dimensions and image alt text; JavaScript execution is not required to discover the card.
