@@ -1,6 +1,6 @@
 // Execute the actual built HTML's classic scripts without launching a browser.
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
-const html=fs.readFileSync('dist/index.html','utf8');
+const html=fs.readFileSync('dist/erp/index.html','utf8');
 const scripts=[...html.matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/g)];
 assert.equal(scripts.length,10);
 assert(!/<script[^>]*\bsrc=/.test(html),'No separately fetched application scripts');

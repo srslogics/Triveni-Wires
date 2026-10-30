@@ -1,6 +1,16 @@
-# Triveni Wires — Manufacturing ERP demo
+# Triveni Wires — Corporate website and ERP demo
 
 A branded, browser-local presentation prototype with 16 proposed ERP modules, 11 acting roles, shared sample transactions and owner views for delivery exposure, stock discrepancies and production costing.
+
+## Website and ERP routes
+
+The industrial corporate website opens at `/` and `/website/`. The complete ERP demo is retained at `/erp/`, including the existing demo login, roles and saved records. The website footer links to the ERP. Both routes work with the same Render Static Site and existing settings.
+
+- Website source: `website/` (homepage, product pages, buyer downloads and enquiry scripts).
+- ERP source: `public/` (the source directory is retained to preserve the existing tests and offline generator).
+- Build output: `dist/` for the website; `dist/website/` for its alias; `dist/erp/` for the ERP.
+
+The website includes the industrial redesign, product/application filtering and multi-product local enquiry drafts. It does not send requests to the company. Approved sales routing is still required. Browser visual QA was not performed at the user's request.
 
 ## Deploy on Render
 
@@ -32,7 +42,7 @@ Demo access persists across refreshes within a tab through session storage. **Si
 
 ## WhatsApp link preview
 
-Share the **deployed Render HTTPS link**, not the GitHub repository link or localhost. The build inserts the public URL into the initial HTML's Open Graph tags. It includes a branded 1200 × 630 JPEG, title, description, image dimensions and image alt text; JavaScript execution is not required to discover the card.
+Share the **deployed Render HTTPS link** for the website, or append `/erp/` for the ERP demo. The website preview uses the company logo; the ERP retains its branded rectangular preview card. Do not share a localhost or GitHub link with the client. The build inserts the public URL into the initial HTML's Open Graph tags. The ERP page includes a branded 1200 × 630 JPEG, title, description, image dimensions and image alt text; JavaScript execution is not required to discover the card.
 
 After deployment, verify that `/assets/social-preview.jpg` loads publicly and that View Source contains the deployed URL in `og:image` and `og:url`. Then paste the HTTPS link in WhatsApp and allow the preview to load before sending. The receiving app determines the final card layout and may cache earlier previews. A localhost URL cannot provide a remote link preview. Actual WhatsApp appearance remains to be verified after public deployment.
 

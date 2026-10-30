@@ -1,12 +1,12 @@
-import { cp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
+import { cp, mkdir, readFile, writeFile, rm, readdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 const configured=process.env.SITE_URL||process.env.RENDER_EXTERNAL_URL;
 if(process.env.RENDER&&!configured)throw new Error('Set SITE_URL to the full public HTTPS URL before deploying.');
 const url=new URL(configured||'http://localhost:8765');
 if(!['http:','https:'].includes(url.protocol)||url.username||url.password||url.search||url.hash||url.pathname!=='/')throw new Error('SITE_URL must be a plain HTTP(S) origin, without credentials, path, query or fragment.');
 if(configured&&url.protocol!=='https:')throw new Error('Use HTTPS for the public share URL.');
-await rm('dist',{recursive:true,force:true});await mkdir('dist',{recursive:true});await cp('public','dist',{recursive:true});
-let html=(await readFile('public/index.html','utf8')).replaceAll('__SITE_URL__',url.origin);
+await rm('dist',{recursive:true,force:true});await mkdir('dist',{recursive:true});await cp('website','dist',{recursive:true});await cp('public','dist/erp',{recursive:true});
+let html=(await readFile('public/index.html','utf8')).replaceAll('__SITE_URL__',url.origin+'/erp');
 // Deliver every layer together, retaining separate classic-script scopes and
 // execution order. Concatenation changes the hoisting of overridden functions.
 const scripts=[...html.matchAll(/<script src="([^"]+)"><\/script>/g)];
@@ -21,7 +21,7 @@ for(const match of [...html.matchAll(/<link rel="stylesheet" href="([^"]+)">/g)]
  const source=await readFile('public/'+match[1]);
  const hash=createHash('sha256').update(source).digest('hex').slice(0,12);
  const filename=match[1].replace(/\.css$/,`.${hash}.css`);
- await writeFile('dist/'+filename,source);
+ await writeFile('dist/erp/'+filename,source);
  html=html.replace(match[0],`<link rel="stylesheet" href="${filename}">`);
 }
 const guard=await readFile('scripts/startup.js','utf8');
@@ -34,5 +34,38 @@ html=html.replace(/<body([^>]*)>/,(_,attrs)=>`<body${attrs} data-erp-boot="loadi
 html=html.replace('</body>',`<script data-erp-ready>
 window.triveniStartup.finish(typeof modules!=='undefined' && modules.length===16 && typeof rolePolicy!=='undefined' && Object.keys(rolePolicy).length===11 && typeof checkSharedState==='function' && typeof demoSignIn==='function' && typeof demoSessionOpen!=='undefined' && !!document.querySelector('[aria-label="Demonstration role"]'));
 </script></body>`);
-await writeFile('dist/index.html',html);
-console.log(`Built dist. Link preview: ${url.origin}/assets/social-preview.jpg`);
+html=html.replace('<head>','<head><base href="/erp/">');
+await writeFile('dist/erp/index.html',html);
+// The corporate site owns the root; ERP assets stay under /erp/.
+const siteAssets=['styles.css','redesign.css','data.js','app.js'];
+const versions=new Map();
+for(const name of siteAssets){
+ const source=await readFile('dist/'+name);
+ const hash=createHash('sha256').update(source).digest('hex').slice(0,12);
+ const filename=name.replace(/\.(css|js)$/,`.${hash}.$1`);
+ await writeFile('dist/'+filename,source);versions.set(name,filename);
+}
+async function prepareSite(directory){
+ for(const entry of await readdir(directory,{withFileTypes:true})){
+  if(directory==='dist'&&entry.name==='erp')continue;
+  const path=directory+'/'+entry.name;
+  if(entry.isDirectory())await prepareSite(path);
+  else if(entry.name.endsWith('.html')){
+   let content=(await readFile(path,'utf8')).replaceAll('__SITE_URL__',url.origin);
+   for(const [name,filename] of versions){
+    content=content.replaceAll('"'+name+'"','"'+filename+'"').replaceAll('"../'+name+'"','"../'+filename+'"');
+   }
+   await writeFile(path,content);
+  }
+ }
+}
+await prepareSite('dist');
+// Also support the explicitly shareable /website/ path, using the same assets.
+await mkdir('dist/website',{recursive:true});
+for(const entry of await readdir('dist',{withFileTypes:true})){
+ if(['erp','website'].includes(entry.name))continue;
+ await cp('dist/'+entry.name,'dist/website/'+entry.name,{recursive:true});
+}
+const alias=await readFile('dist/website/index.html','utf8');
+await writeFile('dist/website/index.html',alias.replace('<head>','<head><base href="/website/">'));
+console.log(`Built corporate website: ${url.origin}/ (also /website/). ERP: ${url.origin}/erp/`);

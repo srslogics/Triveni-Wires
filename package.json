@@ -1,13 +1,13 @@
 {
-  "name": "triveni-wires-erp-demo",
+  "name": "triveni-wires-website-and-erp",
   "version": "1.0.0",
   "private": true,
-  "description": "Triveni Wires client presentation ERP prototype",
+  "description": "Triveni Wires corporate website and ERP presentation demo",
   "engines": {
     "node": ">=18"
   },
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "node tests/full-check.cjs && node tests/control-check.cjs && node tests/visual-check.cjs && node tests/build-check.mjs && node tests/startup-check.cjs"
+    "test": "node tests/full-check.cjs && node tests/control-check.cjs && node tests/visual-check.cjs && node tests/build-check.mjs && node tests/startup-check.cjs && node tests/website-check.cjs"
   }
 }
