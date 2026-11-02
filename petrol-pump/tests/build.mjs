@@ -14,6 +14,16 @@ for (const key of ["SITE_URL", "RENDER_EXTERNAL_URL"]) {
   const html = readFileSync("dist/index.html", "utf8");
   assert(html.includes('content="https://fuel.example.com/"'));
   assert(html.includes("Content-Security-Policy"));
+  assert(
+    /property="og:image"\s+content="https:\/\/fuel\.example\.com\/assets\/social-preview-v1\.jpg"/.test(
+      html,
+    ),
+  );
+  assert(html.includes('property="og:image:width" content="1200"'));
+  assert(html.includes('property="og:image:height" content="630"'));
+  const preview = readFileSync("dist/assets/social-preview-v1.jpg");
+  assert.equal(preview.readUInt16BE(0), 0xffd8);
+  assert(preview.length < 300000);
   assert(!html.includes("__SITE_URL__"));
   for (const [, name, hash] of html.matchAll(
     /(?:src|href)="([^"]+\.([a-f0-9]{12})\.(?:js|css))"/g,
