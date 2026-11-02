@@ -1,34 +1,266 @@
 // Node DOM simulation only. This does not launch or control a browser.
-const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
-const {parseHTML}=require(process.env.FORECOURT_DOM_LIB||'linkedom');
-function boot(memory={},blocked=false){
- const {document,window}=parseHTML(fs.readFileSync('public/index.html','utf8'));const downloads=[],events={};
- Object.defineProperty(window.HTMLSelectElement.prototype,'value',{configurable:true,get(){const o=[...this.querySelectorAll('option')].find(o=>o.hasAttribute('selected'))||this.querySelector('option');return o?.getAttribute('value')??o?.textContent??''},set(v){for(const o of this.querySelectorAll('option')){if((o.getAttribute('value')??o.textContent)===String(v))o.setAttribute('selected','');else o.removeAttribute('selected');}}});
- const $=s=>document.querySelector(s);$('#modal').showModal=function(){this.open=true};$('#modal').close=function(){this.open=false};
- const create=document.createElement.bind(document);document.createElement=tag=>{const el=create(tag);if(tag==='a')el.click=()=>downloads.push(el.download);return el};
- class FormData{constructor(form){this.values=[...form.querySelectorAll('[name]')].map(e=>[e.getAttribute('name'),e.value]);}entries(){return this.values[Symbol.iterator]();}}
- const context={document,FormData,console,Blob,URL:{createObjectURL:()=> 'blob:test',revokeObjectURL(){}},setTimeout:()=>1,window:{scrollTo(){},print(){events.print=true},addEventListener:(name,cb)=>events[name]=cb},localStorage:{getItem:k=>{if(blocked)throw Error('blocked');return memory[k]??null;},setItem:(k,v)=>{if(blocked)throw Error('blocked');memory[k]=v}}};
- vm.createContext(context);for(const f of ['core.js','app.js'])vm.runInContext(fs.readFileSync('public/'+f,'utf8'),context);
- const fire=(selector,type='click')=>{assert($(selector),'Missing '+selector);$(selector).dispatchEvent(new window.Event(type,{bubbles:true,cancelable:true}));};
- const fill=values=>{for(const [key,value] of Object.entries(values)){$(`[name="${key}"]`).value=String(value);}};
- const change=(sel,val)=>{$(sel).value=val;fire(sel,'change');};
- return {$,fire,fill,change,memory,downloads,events,run:code=>vm.runInContext(code,context)};
+const fs = require("node:fs"),
+  vm = require("node:vm"),
+  assert = require("node:assert/strict");
+const { parseHTML } = require(process.env.FORECOURT_DOM_LIB || "linkedom");
+function boot(memory = {}, blocked = false) {
+  const { document, window } = parseHTML(
+    fs.readFileSync("public/index.html", "utf8"),
+  );
+  const downloads = [],
+    events = {};
+  Object.defineProperty(window.HTMLSelectElement.prototype, "value", {
+    configurable: true,
+    get() {
+      const o =
+        [...this.querySelectorAll("option")].find((o) =>
+          o.hasAttribute("selected"),
+        ) || this.querySelector("option");
+      return o?.getAttribute("value") ?? o?.textContent ?? "";
+    },
+    set(v) {
+      for (const o of this.querySelectorAll("option")) {
+        if ((o.getAttribute("value") ?? o.textContent) === String(v))
+          o.setAttribute("selected", "");
+        else o.removeAttribute("selected");
+      }
+    },
+  });
+  const $ = (s) => document.querySelector(s);
+  $("#modal").showModal = function () {
+    this.open = true;
+  };
+  $("#modal").close = function () {
+    this.open = false;
+  };
+  const create = document.createElement.bind(document);
+  document.createElement = (tag) => {
+    const el = create(tag);
+    if (tag === "a") el.click = () => downloads.push(el.download);
+    return el;
+  };
+  class FormData {
+    constructor(form) {
+      this.values = [...form.querySelectorAll("[name]")].map((e) => [
+        e.getAttribute("name"),
+        e.value,
+      ]);
+    }
+    entries() {
+      return this.values[Symbol.iterator]();
+    }
+  }
+  const context = {
+    document,
+    FormData,
+    console,
+    Blob,
+    URL: { createObjectURL: () => "blob:test", revokeObjectURL() {} },
+    setTimeout: () => 1,
+    window: {
+      scrollTo() {},
+      print() {
+        events.print = true;
+      },
+      addEventListener: (name, cb) => (events[name] = cb),
+    },
+    localStorage: {
+      getItem: (k) => {
+        if (blocked) throw Error("blocked");
+        return memory[k] ?? null;
+      },
+      setItem: (k, v) => {
+        if (blocked) throw Error("blocked");
+        memory[k] = v;
+      },
+    },
+  };
+  vm.createContext(context);
+  for (const f of ["storage.js", "core.js", "app.js"])
+    vm.runInContext(fs.readFileSync("public/" + f, "utf8"), context);
+  const fire = (selector, type = "click") => {
+    assert($(selector), "Missing " + selector);
+    $(selector).dispatchEvent(
+      new window.Event(type, { bubbles: true, cancelable: true }),
+    );
+  };
+  const fill = (values) => {
+    for (const [key, value] of Object.entries(values)) {
+      $(`[name="${key}"]`).value = String(value);
+    }
+  };
+  const change = (sel, val) => {
+    $(sel).value = val;
+    fire(sel, "change");
+  };
+  return {
+    $,
+    fire,
+    fill,
+    change,
+    memory,
+    downloads,
+    events,
+    run: (code) => vm.runInContext(code, context),
+  };
 }
-const a=boot();assert.equal(a.$('h1').textContent,'Overview');assert.equal(a.$('.kpi-value').textContent,'₹13,90,920');assert.equal(a.$('#outlet-select').querySelectorAll('option').length,4);
-let rendered=0;for(const role of ['Owner','Manager','Accountant']){a.change('#role-select',role);for(const o of ['central','highway','airport']){a.change('#outlet-select',o);const links=[...a.$('nav').querySelectorAll('[data-page]')].map(x=>x.dataset.page);for(const page of links){a.fire(`nav [data-page="${page}"]`);assert(a.$('h1'));assert(!a.$('#main').innerHTML.includes('undefined'));assert(!a.$('#main').textContent.includes('NaN'));rendered++;}}}
-a.change('#role-select','Owner');a.change('#outlet-select','all');a.fire('nav [data-page="sales"]');a.fire('[data-action="sale"]');assert(a.$('#modal').open);a.fill({outlet:'central',nozzle:'central-N1',closing:242200,method:'Cash'});a.fire('#transaction-form','submit');assert(!a.$('#modal').open);assert(a.run('state.sales.length')===25);assert.equal(a.run('C.stock(state,"central-petrol")'),9800);assert(a.memory['forecourt-demo-v1']);
-a.fire('[data-action="sale"]');a.fill({closing:1,method:'Cash'});a.fire('#transaction-form','submit');assert(a.$('#form-error').textContent.includes('Closing meter'));a.fire('[data-action="dismiss"]');
-a.fire('nav [data-page="tanks"]');assert(a.$('#main').textContent.includes('New reading needed'));a.fire('[data-action="dip"][data-id="central-petrol"]');a.fill({physical:9800});a.fire('#transaction-form','submit');assert.equal(a.run('state.tanks[0].physical'),9800);
-a.fire('nav [data-page="receipts"]');a.fire('[data-action="receipt"]');a.change('#form-outlet','highway');a.fill({tank:'highway-diesel',docket:'DOM-1',supplier:'Test <Depot>',received:5000,invoiced:5000,note:''});a.fire('#transaction-form','submit');assert(a.$('#main').textContent.includes('Test <Depot>'));assert(!a.$('#main').querySelector('Depot'));assert.equal(a.run('C.stock(state,"highway-diesel")'),10200);
-a.change('#role-select','Manager');a.change('#outlet-select','central');a.fire('nav [data-page="shifts"]');a.fire('[data-action="close"]');const counted=a.run('C.expectedCash(state,"central-shift-1")/100-200');a.fill({counted,note:'Test shortage'});a.fire('#transaction-form','submit');assert.equal(a.run('state.shifts[0].status'),'submitted');assert(!a.$('[data-action="approve"]'));a.change('#role-select','Owner');a.fire('nav [data-page="shifts"]');a.fire('[data-action="approve"]');assert.equal(a.run('state.shifts[0].status'),'approved');
-a.change('#outlet-select','airport');a.fire('nav [data-page="credit"]');const before=a.run('C.balance(state,"airport-fleet")');a.fire('[data-action="collect"]');a.fill({amount:10000,method:'Bank'});a.fire('#transaction-form','submit');assert.equal(a.run('C.balance(state,"airport-fleet")'),before-1000000);
-a.fire('nav [data-page="expenses"]');a.fire('[data-action="expense"]');a.fill({amount:200,method:'Cash',note:'Test supplies'});a.fire('#transaction-form','submit');assert(a.$('#main').textContent.includes('Test supplies'));
-a.fire('nav [data-page="maintenance"]');a.fire('[data-action="task"]');a.fill({title:'Check hose <script>alert(1)</script>',due:'2026-11-03'});a.fire('#transaction-form','submit');assert(a.$('#main').textContent.includes('Check hose <script>'));assert(!a.$('#main').querySelector('script'));const tid=a.run('state.tasks.at(-1).id');a.fire(`[data-action="complete"][data-id="${tid}"]`);assert.equal(a.run('state.tasks.at(-1).status'),'Done');
-a.change('#outlet-select','all');a.fire('nav [data-page="reports"]');a.fire('[data-action="export"]');assert.equal(a.downloads[0],'Forecourt-all-sample-sales.csv');a.fire('[data-action="print"]');assert(a.events.print);
-a.fire('[data-action="tour"]');assert.equal(a.$('.tour-list').children.length,7);a.fire('[data-action="dismiss"]');
-const reload=boot(a.memory);assert.equal(reload.run('state.sales.length'),25);assert.equal(reload.run('state.shifts[0].status'),'approved');
-const blocked=boot({},true);blocked.fire('[data-action="sale"]');blocked.fill({closing:242200});blocked.fire('#transaction-form','submit');assert(blocked.$('.notice').textContent.includes('Storage is unavailable'));assert.equal(blocked.run('state.sales.length'),25);
-for(const raw of ['broken','{}','{"version":1,"sales":[null]}']){const corrupt=boot({'forecourt-demo-v1':raw});assert(corrupt.$('.notice').textContent.includes('could not be loaded'));assert.equal(corrupt.run('state.sales.length'),24);}
-const stale=boot();stale.fire('[data-action="sale"]');stale.fill({closing:242200});stale.memory['forecourt-demo-v1']=JSON.stringify({...stale.run('C.seed()'),revision:9});stale.fire('#transaction-form','submit');assert(stale.$('#form-error').textContent.includes('Another tab'));assert.equal(stale.run('state.sales.length'),24);
-a.fire('[data-action="reset"]');a.fire('[data-action="confirm-reset"]');assert.equal(a.run('state.sales.length'),24);assert.equal(a.run('state.shifts[0].status'),'open');
-console.log(`PASS ${rendered} role/outlet/module renders; forms; connected workflow; validation errors; HTML escaping; CSV; print trigger; walkthrough; refresh; blocked/corrupt storage; stale-tab protection; reset`);
+const a = boot();
+assert.equal(a.$("h1").textContent, "Overview");
+assert.equal(a.$(".kpi-value").textContent, "₹13,90,920");
+assert.equal(a.$("#outlet-select").querySelectorAll("option").length, 4);
+let rendered = 0;
+for (const role of ["Owner", "Manager", "Accountant"]) {
+  a.change("#role-select", role);
+  for (const o of ["central", "highway", "airport"]) {
+    a.change("#outlet-select", o);
+    const links = [...a.$("nav").querySelectorAll("[data-page]")].map(
+      (x) => x.dataset.page,
+    );
+    for (const page of links) {
+      a.fire(`nav [data-page="${page}"]`);
+      assert(a.$("h1"));
+      assert(!a.$("#main").innerHTML.includes("undefined"));
+      assert(!a.$("#main").textContent.includes("NaN"));
+      rendered++;
+    }
+  }
+}
+a.change("#role-select", "Owner");
+a.change("#outlet-select", "all");
+a.fire('nav [data-page="sales"]');
+a.fire('[data-action="sale"]');
+assert(a.$("#modal").open);
+a.fill({
+  outlet: "central",
+  nozzle: "central-N1",
+  closing: 242200,
+  method: "Cash",
+});
+a.fire("#transaction-form", "submit");
+assert(!a.$("#modal").open);
+assert(a.run("state.sales.length") === 25);
+assert.equal(a.run('C.stock(state,"central-petrol")'), 9800);
+assert(a.memory["forecourt-demo-v1"]);
+a.fire('[data-action="sale"]');
+a.fill({ closing: 1, method: "Cash" });
+a.fire("#transaction-form", "submit");
+assert(a.$("#form-error").textContent.includes("Closing meter"));
+a.fire('[data-action="dismiss"]');
+a.fire('nav [data-page="tanks"]');
+assert(a.$("#main").textContent.includes("New reading needed"));
+a.fire('[data-action="dip"][data-id="central-petrol"]');
+a.fill({ physical: 9800 });
+a.fire("#transaction-form", "submit");
+assert.equal(a.run("state.tanks[0].physical"), 9800);
+a.fire('nav [data-page="receipts"]');
+a.fire('[data-action="receipt"]');
+a.change("#form-outlet", "highway");
+a.fill({
+  tank: "highway-diesel",
+  docket: "DOM-1",
+  supplier: "Test <Depot>",
+  received: 5000,
+  invoiced: 5000,
+  note: "",
+});
+a.fire("#transaction-form", "submit");
+assert(a.$("#main").textContent.includes("Test <Depot>"));
+assert(!a.$("#main").querySelector("Depot"));
+assert.equal(a.run('C.stock(state,"highway-diesel")'), 10200);
+a.change("#role-select", "Manager");
+a.change("#outlet-select", "central");
+a.fire('nav [data-page="shifts"]');
+a.fire('[data-action="close"]');
+const counted = a.run('C.expectedCash(state,"central-shift-1")/100-200');
+a.fill({ counted, note: "Test shortage" });
+a.fire("#transaction-form", "submit");
+assert.equal(a.run("state.shifts[0].status"), "submitted");
+assert(!a.$('[data-action="approve"]'));
+a.change("#role-select", "Owner");
+a.fire('nav [data-page="shifts"]');
+a.fire('[data-action="approve"]');
+assert.equal(a.run("state.shifts[0].status"), "approved");
+a.change("#outlet-select", "airport");
+a.fire('nav [data-page="credit"]');
+const before = a.run('C.balance(state,"airport-fleet")');
+a.fire('[data-action="collect"]');
+a.fill({ amount: 10000, method: "Bank" });
+a.fire("#transaction-form", "submit");
+assert.equal(a.run('C.balance(state,"airport-fleet")'), before - 1000000);
+a.fire('nav [data-page="expenses"]');
+a.fire('[data-action="expense"]');
+a.fill({ amount: 200, method: "Cash", note: "Test supplies" });
+a.fire("#transaction-form", "submit");
+assert(a.$("#main").textContent.includes("Test supplies"));
+a.fire('nav [data-page="maintenance"]');
+a.fire('[data-action="task"]');
+a.fill({ title: "Check hose <script>alert(1)</script>", due: "2026-11-03" });
+a.fire("#transaction-form", "submit");
+assert(a.$("#main").textContent.includes("Check hose <script>"));
+assert(!a.$("#main").querySelector("script"));
+const tid = a.run("state.tasks.at(-1).id");
+a.fire(`[data-action="complete"][data-id="${tid}"]`);
+assert.equal(a.run("state.tasks.at(-1).status"), "Done");
+a.change("#outlet-select", "all");
+a.fire('nav [data-page="reports"]');
+a.fire('[data-action="export"]');
+assert.equal(a.downloads[0], "Forecourt-all-sample-sales.csv");
+a.fire('[data-action="print"]');
+assert(a.events.print);
+a.fire('[data-action="tour"]');
+assert.equal(a.$(".tour-list").children.length, 7);
+a.fire('[data-action="dismiss"]');
+const reload = boot(a.memory);
+assert.equal(reload.run("state.sales.length"), 25);
+assert.equal(reload.run("state.shifts[0].status"), "approved");
+const blocked = boot({}, true);
+blocked.fire('[data-action="sale"]');
+blocked.fill({ closing: 242200 });
+blocked.fire("#transaction-form", "submit");
+assert(blocked.$(".notice").textContent.includes("Storage is unavailable"));
+assert.equal(blocked.run("state.sales.length"), 25);
+for (const raw of ["broken", "{}", '{"version":1,"sales":[null]}']) {
+  const corrupt = boot({ "forecourt-demo-v1": raw });
+  assert(corrupt.$(".notice").textContent.includes("could not be loaded"));
+  assert.equal(corrupt.run("state.sales.length"), 24);
+}
+const stale = boot();
+stale.fire('[data-action="sale"]');
+stale.fill({ closing: 242200 });
+stale.memory["forecourt-demo-v1"] = JSON.stringify({
+  ...stale.run("C.seed()"),
+  revision: 9,
+});
+stale.fire("#transaction-form", "submit");
+assert(stale.$("#form-error").textContent.includes("Another tab"));
+assert.equal(stale.run("state.sales.length"), 24);
+a.fire('[data-action="reset"]');
+a.fire('[data-action="confirm-reset"]');
+assert.equal(a.run("state.sales.length"), 24);
+assert.equal(a.run("state.shifts[0].status"), "open");
+console.log(
+  `PASS ${rendered} role/outlet/module renders; forms; connected workflow; validation errors; HTML escaping; CSV; print trigger; walkthrough; refresh; blocked/corrupt storage; stale-tab protection; reset`,
+);
+
+const protectedData = boot({ "forecourt-demo-v1": "{damaged" });
+protectedData.fire('[data-action="sale"]');
+protectedData.fill({ closing: 242200 });
+protectedData.fire("#transaction-form", "submit");
+assert(protectedData.$("#form-error").textContent.includes("recovery"));
+assert.equal(protectedData.memory["forecourt-demo-v1"], "{damaged");
+protectedData.fire('[data-action="dismiss"]');
+protectedData.fire('[data-action="backup"]');
+assert.equal(protectedData.downloads[0], "Forecourt-demo-recovery.json");
+const changedForm = boot();
+changedForm.fire('[data-action="sale"]');
+changedForm.fill({ closing: 242200 });
+const next = changedForm.run("C.seed()");
+next.revision = 1;
+changedForm.memory["forecourt-demo-v1"] = JSON.stringify(next);
+changedForm.events.storage({ key: "forecourt-demo-v1" });
+changedForm.fire("#transaction-form", "submit");
+assert(changedForm.$("#form-error").textContent.includes("out of date"));
+assert.equal(changedForm.run("state.sales.length"), 24);
+console.log(
+  "PASS recovery export, corrupt data write protection and storage-event stale form rejection",
+);

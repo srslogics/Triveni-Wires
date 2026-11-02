@@ -1,1 +1,47 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#132e30"><meta name="description" content="Forecourt: a multi-outlet petrol pump management prototype with connected sample sales, stock and shift reconciliation."><meta property="og:title" content="Forecourt — Petrol Pump Management"><meta property="og:description" content="A multi-outlet management prototype for sales, fuel stock, cash reconciliation and fleet credit."><meta property="og:type" content="website"><meta property="og:url" content="__SITE_URL__/"><title>Forecourt — Petrol Pump Management</title><link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="style.css"></head><body><a class="skip" href="#main">Skip to workspace</a><div id="app"></div><dialog id="modal" aria-labelledby="modal-title"></dialog><div id="toast" role="status" aria-live="polite"></div><noscript>Enable JavaScript to use this interactive petrol pump prototype.</noscript><script src="core.js"></script><script src="app.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="theme-color" content="#132e30" />
+    <meta
+      name="description"
+      content="Forecourt: a multi-outlet petrol pump management prototype with connected sample sales, stock and shift reconciliation."
+    />
+    <meta property="og:title" content="Forecourt — Petrol Pump Management" />
+    <meta
+      property="og:description"
+      content="A multi-outlet management prototype for sales, fuel stock, cash reconciliation and fleet credit."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="__SITE_URL__/" />
+    <title>Forecourt — Petrol Pump Management</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to workspace</a>
+    <div id="app">
+      <main class="startup" role="status">
+        <h1>Opening Forecourt</h1>
+        <p>Loading your sample workspace…</p>
+        <p id="startup-error" hidden>
+          The workspace could not start. Reload this page. Saved data has not
+          been cleared.
+        </p>
+      </main>
+    </div>
+    <dialog id="modal" aria-labelledby="modal-title"></dialog>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <noscript
+      >Enable JavaScript to use this interactive petrol pump
+      prototype.</noscript
+    >
+    <script src="boot.js"></script>
+    <script src="storage.js"></script>
+    <script src="core.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,26 @@
+name: Petrol pump quality checks
+on:
+  push:
+    paths: ["petrol-pump/**", ".github/workflows/petrol-pump.yml"]
+  pull_request:
+    paths: ["petrol-pump/**", ".github/workflows/petrol-pump.yml"]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: petrol-pump
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: petrol-pump/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm run format:check
+      - run: npm test
+      - run: npm run build
+      - run: npm audit --audit-level=high

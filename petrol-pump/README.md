@@ -63,15 +63,29 @@ Validation covers 14 transaction test groups and 81 role/outlet/module renders, 
 
 Create a **new Static Site** connected to `srslogics/Triveni-Wires`.
 
-| Setting | Value |
-| --- | --- |
-| Branch | `main` |
-| Root Directory | `petrol-pump` |
-| Build Command | `npm run build` |
-| Publish Directory | `dist` |
+| Setting           | Value           |
+| ----------------- | --------------- |
+| Branch            | `main`          |
+| Root Directory    | `petrol-pump`   |
+| Build Command     | `npm run build` |
+| Publish Directory | `dist`          |
 
 The build copies the static application and inserts Render's `RENDER_EXTERNAL_URL` into share metadata. For a custom domain, set `SITE_URL` to the full HTTPS origin. No install command, database or environment secret is required to build this prototype. Dev dependencies are only needed to run the test suite.
 
 Use a separate Render Static Site for this folder. The repository's existing root build continues to serve the Triveni Wires ERP and corporate website.
 
 The Render URL will be publicly reachable unless you configure access separately. The application only contains fictional sample data, and its role selector is a demo control rather than authentication.
+
+## Professional quality improvements
+
+The financial model now validates stored records before and after a transaction: integer paise, bounded decimal inputs, continuous meter readings, unique IDs, valid cross-record references and closed-shift cash totals. Forms capture their opening revision and reject outdated submissions. Storage conflicts and malformed data are preserved for explicit review; Owner can download a JSON recovery copy. Local storage remains an optimistic browser-local mechanism, with no guarantee of atomic multi-user writes.
+
+UI improvements include larger operational text, stronger secondary-text contrast, larger controls, keyboard-focusable table regions with column headings, page focus after navigation, labelled dialog errors and a visible startup failure message. External font requests were removed. This is targeted accessibility work, not a WCAG conformance certification; browser and assistive-technology checks remain outstanding under the no-browser constraint.
+
+The build uses content-versioned scripts/styles and a Content Security Policy. The included `petrol-pump/render.yaml` configures additional HTTP security headers. To use it, select that Blueprint file when creating the new service. A manually created Static Site does not automatically inherit these headers: add them from the file in Render's Headers settings. The CSP permits inline styles for the charts but disallows inline scripts and external network connections. The HTML policy cannot enforce frame-ancestors; that protection requires the configured HTTP header.
+
+Dependencies are pinned in `package-lock.json`. Run `npm ci --ignore-scripts`, `npm run format:check`, `npm test`, and `npm audit --audit-level=high`. The GitHub Actions workflow applies those checks to this folder.
+
+Design references: [OWASP ASVS](https://asvs.owasp.org/), [OWASP HTTP headers](https://cheatsheetseries.owasp.org/cheatsheets/HTTP_Headers_Cheat_Sheet.html), [WCAG 2.2](https://www.w3.org/TR/WCAG22/). These guide individual improvements; the prototype has not been assessed as compliant with all requirements.
+
+Before production: individual authentication, server-enforced outlet access, transactional database posting and idempotency, immutable audit retention, tested backups/restores, monitoring, incident procedures, device integration testing, and client-approved measurement/accounting rules are still required. No certification or statutory compliance is implied by this prototype.
