@@ -59,6 +59,10 @@ const labels = {
   shifts: "Shift reconciliation",
   credit: "Fleet & credit",
   invoices: "Invoices & sharing",
+  testing: "Nozzle test & returns",
+  settlements: "Digital settlements",
+  suppliers: "Supplier accounts",
+  handover: "Staff handover",
   expenses: "Expenses",
   maintenance: "Maintenance",
   reports: "Reports",
@@ -261,17 +265,12 @@ function overview() {
   const tender = ["Cash", "UPI", "Card", "Credit"].map((method) =>
     row([
       method,
-      money(
-        C.sum(
-          C.rows(state, "sales", ctx).filter((s) => s.method === method),
-          (s) => s.amount,
-        ),
-      ),
+      money(C.sum(C.rows(state, "sales", ctx), (s) => C.tender(s, method))),
       method === "Credit"
         ? "Customer receivable"
         : method === "Cash"
           ? "Included in shift cash"
-          : "Settlement outside this demo",
+          : "See Digital settlements",
     ]),
   );
   const stationRows = stations.map((o) => {
@@ -325,7 +324,15 @@ function overview() {
     title(
       "overview",
       "Daily operating statement · Sales, stock and shift control",
-      act("tour", "Demo guide", "", "btn secondary") +
+      (ctx.role === "Owner"
+        ? act(
+            "load-workflow-samples",
+            "Load complete example",
+            "",
+            "btn secondary",
+          )
+        : "") +
+        act("tour", "Demo guide", "", "btn secondary") +
         (can("sale")
           ? act("sale", "Record meter sale", "", "btn primary")
           : ""),
@@ -387,19 +394,25 @@ function salesPage() {
         "Sales value",
         "Payment",
       ],
-      [...rs]
-        .reverse()
-        .map((r) =>
-          row([
-            `<strong>${r.id}</strong>`,
-            `${outlet(r.outlet).name}<small>${nozzle(r.nozzle).label}</small>`,
-            badge(r.fuel, r.fuel === "Petrol" ? "green" : "blue"),
-            `${fmt(r.opening, 3)} →<br>${fmt(r.closing, 3)}`,
-            litres(r.litres),
-            money(r.amount),
-            badge(r.method, r.method === "Credit" ? "amber" : "neutral"),
-          ]),
-        ),
+      [...rs].reverse().map((r) =>
+        row([
+          `<strong>${r.id}</strong>`,
+          `${outlet(r.outlet).name}<small>${nozzle(r.nozzle).label}${r.operator ? " · " + esc(r.operator) : ""}</small>`,
+          badge(r.fuel, r.fuel === "Petrol" ? "green" : "blue"),
+          `${fmt(r.opening, 3)} →<br>${fmt(r.closing, 3)}`,
+          litres(r.litres),
+          money(r.amount),
+          badge(r.method, r.method === "Credit" ? "amber" : "neutral") +
+            (r.method === "Split"
+              ? "<small>" +
+                ["Cash", "UPI", "Card", "Credit"]
+                  .filter((m) => C.tender(r, m) > 0)
+                  .map((m) => m + ": " + money(C.tender(r, m)))
+                  .join("<br>") +
+                "</small>"
+              : ""),
+        ]),
+      ),
     )}</section>`
   );
 }
@@ -469,8 +482,8 @@ function shiftsPage() {
       .map((sh) => {
         const expected = C.expectedCash(state, sh.id),
           sales = C.sum(
-            state.sales.filter((r) => r.shift === sh.id && r.method === "Cash"),
-            (r) => r.amount,
+            state.sales.filter((r) => r.shift === sh.id),
+            (r) => C.tender(r, "Cash"),
           ),
           collections = C.sum(
             state.collections.filter(
@@ -516,7 +529,7 @@ function creditPage() {
           money(
             C.sum(
               state.sales.filter((r) => r.customer === c.id),
-              (r) => r.amount,
+              (r) => C.tender(r, "Credit"),
             ),
           ),
           money(
@@ -665,7 +678,7 @@ function invoiceRecord(id) {
   return C.rows(state, "invoices", ctx).find((r) => r.id === id);
 }
 function invoiceSheet(r) {
-  return `<section id="invoice-sheet" class="panel invoice-sheet"><div class="invoice-controls"><strong>Document preview</strong><div class="button-row">${act("invoice-contact", "Set WhatsApp number", `data-id="${r.id}"`, "btn secondary")}${act("invoice-pdf", "Download PDF", `data-id="${r.id}"`, "btn secondary")}${act("invoice-print", "Print / Save PDF", `data-id="${r.id}"`, "btn secondary")}<a class="btn primary" href="${esc(ForecourtDocuments.whatsapp(r))}" target="_blank" rel="noopener noreferrer">Open WhatsApp draft</a></div></div><div class="invoice-paper"><div class="invoice-heading"><div><div class="eyebrow">FORECOURT / DOCUMENTS</div><h2>DRAFT INVOICE</h2><p>Demonstration document · Not a tax invoice</p></div><div><strong>${esc(r.reference)}</strong><p>Date: ${r.date}</p></div></div><div class="invoice-parties"><div><small>FROM</small><h3>${esc(r.seller)}</h3><p>${esc(outlet(r.outlet).name)}</p></div><div><small>BILL TO · ${esc(r.recipientType.toUpperCase())}</small><h3>${esc(r.recipient)}</h3><p>${esc(r.address)}</p><p>${r.phone ? "+" + esc(r.phone) : "No WhatsApp number recorded"}</p></div></div>${table(["Description", "Quantity", "Unit price", "Amount"], [row([esc(r.description), `${r.quantity} ${esc(r.unit)}`, money(r.rate), money(r.amount)])])}<div class="invoice-total">Draft total <strong>${money(r.amount)}</strong></div>${r.note ? `<p class="invoice-note">${esc(r.note)}</p>` : ""}<p class="footnote">Draft only. No tax has been calculated or verified. This document has not posted stock, cash or receivables and is not proof of payment.</p></div></section>`;
+  return `<section id="invoice-sheet" class="panel invoice-sheet"><div class="invoice-controls"><strong>Document preview</strong><div class="button-row">${act("invoice-contact", "Set WhatsApp number", `data-id="${r.id}"`, "btn secondary")}${act("invoice-pdf", "Download PDF", `data-id="${r.id}"`, "btn secondary")}${act("invoice-print", "Print / Save PDF", `data-id="${r.id}"`, "btn secondary")}<a class="btn primary" href="${esc(ForecourtDocuments.whatsapp(r))}" target="_blank" rel="noopener noreferrer">Open WhatsApp draft</a></div></div><div class="invoice-paper"><div class="invoice-heading"><div><div class="eyebrow">FORECOURT / DOCUMENTS</div><h2>DRAFT INVOICE</h2><p>Demonstration document · Not a tax invoice</p></div><div><strong>${esc(r.reference)}</strong><p>Date: ${r.date}</p>${r.sourceSale ? `<p>Source sale: ${esc(r.sourceSale)}</p>` : ""}</div></div><div class="invoice-parties"><div><small>FROM</small><h3>${esc(r.seller)}</h3><p>${esc(outlet(r.outlet).name)}</p></div><div><small>BILL TO · ${esc(r.recipientType.toUpperCase())}</small><h3>${esc(r.recipient)}</h3><p>${esc(r.address)}</p><p>${r.phone ? "+" + esc(r.phone) : "No WhatsApp number recorded"}</p></div></div>${table(["Description", "Quantity", "Unit price", "Amount"], [row([esc(r.description), `${r.quantity} ${esc(r.unit)}`, money(r.rate), money(r.amount)])])}<div class="invoice-total">Draft total <strong>${money(r.amount)}</strong></div>${r.note ? `<p class="invoice-note">${esc(r.note)}</p>` : ""}<p class="footnote">Draft only. No tax has been calculated or verified. This document does not post stock, cash or receivables again. Linked sales already appear in their respective ledgers. It is not proof of payment.</p></div></section>`;
 }
 function invoicesPage() {
   const records = C.rows(state, "invoices", ctx),
@@ -732,6 +745,10 @@ function downloadInvoice(id) {
 const views = {
   overview,
   invoices: invoicesPage,
+  testing: () => workflowPage("testing"),
+  settlements: () => workflowPage("settlements"),
+  suppliers: () => workflowPage("suppliers"),
+  handover: () => workflowPage("handover"),
   outlets: outletsPage,
   sales: salesPage,
   tanks: tanksPage,
@@ -783,6 +800,12 @@ function form(action, selected, id) {
     expense: "Record an expense",
     task: "Add a maintenance task",
     invoice: "Create a draft invoice",
+    nozzleTest: "Record nozzle test",
+    testReturn: "Record fuel return",
+    settlement: "Reconcile bank receipt",
+    supplierBill: "Book supplier bill",
+    supplierPay: "Record supplier payment",
+    handover: "Record staff handover",
     invoicePhone: "Set WhatsApp recipient",
   };
   openDialog(
@@ -935,8 +958,21 @@ function formFields(action, o, id) {
         "",
         'min="0" step="0.001" required',
       ) +
-      methods(["Cash", "UPI", "Card", "Credit"]) +
-      `<div id="customer-field" hidden>${customers}</div><p class="footnote">One entry records a meter increment assigned to one payment method. Production shift entry will support split tenders, testing returns and price changes.</p>`;
+      methods(["Cash", "UPI", "Card", "Credit", "Split"]) +
+      '<div id="split-fields" hidden><p class="footnote">Enter each tender in INR. Their total must equal the meter sale.</p><div class="form-grid">' +
+      ["Cash", "UPI", "Card", "Credit"]
+        .map((m) =>
+          field(
+            m + " (INR)",
+            "split" + m,
+            "number",
+            "0",
+            'min="0" step="0.01"',
+          ),
+        )
+        .join("") +
+      "</div></div>" +
+      `<div id="customer-field" hidden>${customers}</div><p class="footnote">Each entry records one meter increment. Choose Split to allocate this meter movement across payment methods. Record nozzle-test fuel separately in Nozzle test & returns. Prices are illustrative and fixed in this demo.</p>`;
   if (action === "receipt")
     html =
       tankSelect +
@@ -1020,6 +1056,14 @@ function formFields(action, o, id) {
         'min="0" step="0.01" required',
       ) +
       '<p class="footnote">The previous shift must be approved. Nozzle meters continue from the last recorded sale.</p>';
+  if (action === "start")
+    html += field(
+      "Opening operator",
+      "operator",
+      "text",
+      outlet(o).manager,
+      'required maxlength="160"',
+    );
   if (action === "collect")
     html =
       customers +
@@ -1059,10 +1103,30 @@ function formFields(action, o, id) {
         "",
         'required maxlength="160"',
       ) + field("Due date", "due", "date", C.DAY, "required");
+  if (action === "invoice")
+    html =
+      select(
+        "Source sale (optional; never posted twice)",
+        "sourceSale",
+        '<option value="">Standalone draft</option>' +
+          state.sales
+            .filter(
+              (r) =>
+                r.outlet === o &&
+                !(state.invoices || []).some((i) => i.sourceSale === r.id),
+            )
+            .map(
+              (r) =>
+                `<option value="${r.id}">${r.id} · ${r.fuel} · ${money(r.amount)}</option>`,
+            )
+            .join(""),
+      ) + html;
+  html = workflowFields(action, o, id) ?? html;
   $("#dependent-fields").innerHTML = html;
   updateHints();
 }
 function updateHints() {
+  workflowHints();
   const f = $("#transaction-form");
   if (!f) return;
   const read = (name) => f.querySelector(`[name="${name}"]`)?.value;
@@ -1073,7 +1137,8 @@ function updateHints() {
       qty = C.round(v - C.meter(state, n.id));
     $("#meter-hint").innerHTML =
       `Previous reading <strong>${fmt(C.meter(state, n.id), 3)} L</strong><br>Sample rate ${rate(t.rate)}/L${qty > 0 ? `<br>This entry: <strong>${litres(qty)} · ${money(Math.round(qty * t.rate))}</strong>` : ""}`;
-    $("#customer-field").hidden = read("method") !== "Credit";
+    $("#customer-field").hidden = !["Credit", "Split"].includes(read("method"));
+    $("#split-fields").hidden = read("method") !== "Split";
   }
   if ($("#dip-hint"))
     $("#dip-hint").textContent =
@@ -1096,6 +1161,11 @@ function exportSales() {
       "Rate INR per L",
       "Sales INR",
       "Method",
+      "Cash INR",
+      "UPI INR",
+      "Card INR",
+      "Credit INR",
+      "Operator",
       "Dataset",
     ],
     ...rs.map((r) => [
@@ -1109,6 +1179,10 @@ function exportSales() {
       (r.rate / 100).toFixed(2),
       (r.amount / 100).toFixed(2),
       r.method,
+      ...["Cash", "UPI", "Card", "Credit"].map((m) =>
+        (C.tender(r, m) / 100).toFixed(2),
+      ),
+      r.operator || outlet(r.outlet).manager,
       "Fictional demo",
     ]),
   ];
@@ -1174,6 +1248,7 @@ document.addEventListener("click", (e) => {
       "expense",
       "task",
       "invoice",
+      ...C.Ops.actions,
     ].includes(a)
   ) {
     form(a, o, id);
@@ -1211,6 +1286,17 @@ document.addEventListener("click", (e) => {
       render();
       window.print();
     }
+    return;
+  }
+  if (a === "load-workflow-samples") {
+    info(
+      "Load the complete business example",
+      `<p>This adds a 100 L split sale, a 5 L test and return, two digital settlement matches, a supplier bill and part-payment, staff handover and a linked invoice. Existing records are preserved. All figures are sample entries.</p>${act("confirm-workflow-samples", "Add sample workflow", "", "btn primary")}`,
+    );
+    return;
+  }
+  if (a === "confirm-workflow-samples") {
+    commit("loadWorkflowSamples", { outlet: "central" });
     return;
   }
   if (a === "dismiss") closeDialog();

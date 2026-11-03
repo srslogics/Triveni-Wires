@@ -77,7 +77,14 @@ function boot(memory = {}, blocked = false) {
     },
   };
   vm.createContext(context);
-  for (const f of ["storage.js", "core.js", "documents.js", "app.js"])
+  for (const f of [
+    "storage.js",
+    "operations.js",
+    "core.js",
+    "documents.js",
+    "workflows.js",
+    "app.js",
+  ])
     vm.runInContext(fs.readFileSync("public/" + f, "utf8"), context);
   const fire = (selector, type = "click") => {
     assert($(selector), "Missing " + selector);
@@ -344,4 +351,56 @@ assert(
 );
 console.log(
   "PASS sample invoice register, repeat load and recipient number editing",
+);
+
+const completeDemo = boot();
+completeDemo.fire('[data-action="load-workflow-samples"]');
+completeDemo.fire('[data-action="confirm-workflow-samples"]');
+assert.equal(completeDemo.run("state.operations.length"), 7);
+completeDemo.fire('nav [data-page="sales"]');
+assert(completeDemo.$("#main").textContent.includes("Split"));
+assert(completeDemo.$("#main").textContent.includes("5,000"));
+completeDemo.fire('nav [data-page="testing"]');
+assert(completeDemo.$("#main").textContent.includes("5 L"));
+completeDemo.fire('[data-action="nozzleTest"]');
+completeDemo.fill({ litres: 5, note: "DOM nozzle test" });
+completeDemo.fire("#transaction-form", "submit");
+assert(!completeDemo.$("#modal").open);
+const testID = completeDemo.run("state.operations.at(-1).id");
+completeDemo.fire(`[data-action="testReturn"][data-id="${testID}"]`);
+completeDemo.fill({ litres: 5 });
+completeDemo.fire("#transaction-form", "submit");
+assert(!completeDemo.$("#modal").open);
+completeDemo.fire('nav [data-page="settlements"]');
+assert(completeDemo.$("#main").textContent.includes("Matched"));
+assert(completeDemo.$("#main").textContent.includes("Exception"));
+completeDemo.fire('nav [data-page="suppliers"]');
+assert(completeDemo.$("#main").textContent.includes("2,50,000"));
+const billID = completeDemo.run(
+  'state.operations.find(r=>r.kind==="supplierBill").id',
+);
+completeDemo.fire(`[data-action="supplierPay"][data-id="${billID}"]`);
+completeDemo.fill({ reference: "DOM-PAY-100", amount: 10000 });
+completeDemo.fire("#transaction-form", "submit");
+assert(!completeDemo.$("#modal").open);
+assert(completeDemo.$("#main").textContent.includes("2,40,000"));
+completeDemo.fire('nav [data-page="handover"]');
+assert(completeDemo.$("#main").textContent.includes("Kavita Rao"));
+completeDemo.fire('nav [data-page="invoices"]');
+assert(completeDemo.$("#main").textContent.includes("WF-DEMO-INV"));
+assert(completeDemo.$("#invoice-sheet").textContent.includes("Source sale:"));
+completeDemo.fire('[data-action="invoice"]');
+const source = completeDemo.run('state.sales.find(r=>r.method==="Credit").id');
+completeDemo.change('[name="sourceSale"]', source);
+assert(completeDemo.$('[name="quantity"]').readOnly);
+completeDemo.fill({
+  reference: "DOM-LINK-2",
+  date: "2026-11-03",
+  address: "Sample street",
+});
+completeDemo.fire("#transaction-form", "submit");
+assert(!completeDemo.$("#modal").open);
+assert.equal(completeDemo.run("state.invoices.at(-1).sourceSale"), source);
+console.log(
+  "PASS complete workflow screens, tender allocation, nozzle test/return forms, settlement outcomes, partial supplier payment, staff handover and sale-linked invoice form",
 );

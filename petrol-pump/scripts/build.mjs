@@ -35,6 +35,8 @@ for (const name of [
   "core.js",
   "app.js",
   "documents.js",
+  "operations.js",
+  "workflows.js",
   "style.css",
 ]) {
   const source = await readFile("public/" + name),

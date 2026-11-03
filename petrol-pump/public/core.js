@@ -4,6 +4,10 @@
   else root.Forecourt = api;
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
+  const Ops =
+    typeof module === "object" && module.exports
+      ? require("./operations")
+      : globalThis.ForecourtOperations;
   const DAY = "2026-11-02",
     KEY = "forecourt-demo-v1";
   const ROLES = {
@@ -16,6 +20,10 @@
       "shifts",
       "credit",
       "invoices",
+      "testing",
+      "settlements",
+      "suppliers",
+      "handover",
       "expenses",
       "maintenance",
       "reports",
@@ -29,6 +37,10 @@
       "shifts",
       "credit",
       "invoices",
+      "testing",
+      "settlements",
+      "suppliers",
+      "handover",
       "expenses",
       "maintenance",
       "activity",
@@ -39,6 +51,10 @@
       "shifts",
       "credit",
       "invoices",
+      "testing",
+      "settlements",
+      "suppliers",
+      "handover",
       "expenses",
       "reports",
       "activity",
@@ -278,6 +294,7 @@
           s.receipts.filter((r) => r.tank === id),
           (r) => r.received,
         ) -
+        Ops.testOut(s, id) -
         sum(
           s.sales.filter((r) => r.tank === id),
           (r) => r.litres,
@@ -290,7 +307,7 @@
       c.opening +
       sum(
         s.sales.filter((r) => r.customer === id),
-        (r) => r.amount,
+        (r) => Ops.tender(r, "Credit"),
       ) -
       sum(
         s.collections.filter((r) => r.customer === id),
@@ -299,16 +316,25 @@
     );
   }
   function meter(s, id) {
-    const n = s.nozzles.find((n) => n.id === id);
-    return s.sales.filter((x) => x.nozzle === id).at(-1)?.closing ?? n.opening;
+    const n = s.nozzles.find((n) => n.id === id),
+      moves = [
+        ...s.sales,
+        ...(s.operations || []).filter((r) => r.kind === "nozzleTest"),
+      ]
+        .filter((r) => r.nozzle === id)
+        .sort(
+          (a, b) =>
+            Number(a.id.split("-").at(-1)) - Number(b.id.split("-").at(-1)),
+        );
+    return moves.at(-1)?.closing ?? n.opening;
   }
   function expectedCash(s, id) {
     const sh = s.shifts.find((r) => r.id === id);
     return (
       sh.float +
       sum(
-        s.sales.filter((r) => r.shift === id && r.method === "Cash"),
-        (r) => r.amount,
+        s.sales.filter((r) => r.shift === id),
+        (r) => Ops.tender(r, "Cash"),
       ) +
       sum(
         s.collections.filter((r) => r.shift === id && r.method === "Cash"),
@@ -374,7 +400,10 @@
       task: ["Owner", "Manager"],
       complete: ["Owner", "Manager"],
     };
-    if (!permission[action]?.includes(ctx.role))
+    if (
+      !permission[action]?.includes(ctx.role) &&
+      !Ops.actions.includes(action)
+    )
       error("This action is unavailable for the selected role.");
   }
   function apply(state, ctx, action, input) {
@@ -391,6 +420,8 @@
       error(
         "This form is out of date. Close it and review the latest figures.",
       );
+    if (action === "loadWorkflowSamples")
+      return loadWorkflowSamples(state, ctx);
     const s = JSON.parse(JSON.stringify(state)),
       o = s.outlets.find((o) => o.id === input.outlet);
     if (!o) error("Choose an outlet.");
@@ -424,7 +455,18 @@
     const id = (prefix) => prefix + "-" + ++s.sequence;
     const time = new Date().toISOString();
     let message = "";
-    if (action === "sale") {
+    if (Ops.actions.includes(action)) {
+      message = Ops.apply(s, ctx, action, input, {
+        id,
+        time,
+        txt,
+        val,
+        needOpen,
+        meter,
+        stock,
+        expectedCash,
+      }).message;
+    } else if (action === "sale") {
       const sh = needOpen(),
         n = s.nozzles.find((n) => n.id === input.nozzle && n.outlet === o.id);
       if (!n) error("Choose a nozzle from this outlet.");
@@ -434,24 +476,42 @@
         litres = round(closing - opening);
       if (litres <= 0) error("Closing meter must exceed the previous reading.");
       if (litres > stock(s, t.id)) error("Sale exceeds available book stock.");
-      const method = payment();
+      const method = input.method === "Split" ? "Split" : payment();
       if (method === "Bank")
         error("Select Cash, UPI, Card or Credit for nozzle sales.");
       const amount = Math.round(litres * t.rate);
+      let tenders;
+      if (method === "Split") {
+        tenders = {};
+        for (const key of ["Cash", "UPI", "Card", "Credit"])
+          tenders[key] = Math.round(
+            val(input["split" + key], "split " + key, 1e9, 2, true) * 100,
+          );
+        if (sum(Object.values(tenders), (n) => n) !== amount)
+          error("Split payments must equal the sale total exactly.");
+        if (Object.values(tenders).filter((n) => n > 0).length < 2)
+          error("Enter at least two split payment methods.");
+      }
       let customer = null;
-      if (method === "Credit") {
+      if (method === "Credit" || tenders?.Credit > 0) {
         customer = input.customer;
         const c = s.customers.find(
           (c) => c.id === customer && c.outlet === o.id,
         );
         if (!c) error("Choose a fleet customer from this outlet.");
-        if (balance(s, c.id) + amount > c.limit)
+        if (balance(s, c.id) + (tenders?.Credit ?? amount) > c.limit)
           error("This sale exceeds the customer’s sample credit limit.");
       }
       s.sales.push({
         id: id("SL"),
         outlet: o.id,
         shift: sh.id,
+        operator:
+          (s.operations || [])
+            .filter((r) => r.kind === "handover" && r.shift === sh.id)
+            .at(-1)?.incoming ||
+          sh.operator ||
+          o.manager,
         nozzle: n.id,
         tank: t.id,
         fuel: t.fuel,
@@ -460,6 +520,7 @@
         cost: t.cost,
         amount,
         method,
+        ...(tenders ? { tenders } : {}),
         customer,
         opening,
         closing,
@@ -534,6 +595,7 @@
         id: id("SH"),
         outlet: o.id,
         name: txt(input.name, "a shift name"),
+        operator: txt(input.operator || o.manager, "the shift operator"),
         status: "open",
         float: Math.round(f * 100),
         counted: null,
@@ -682,6 +744,21 @@
         status: "Draft",
         time,
       };
+      if (input.sourceSale) {
+        const source = s.sales.find(
+          (r) => r.id === input.sourceSale && r.outlet === o.id,
+        );
+        if (!source) error("Choose a sale in this outlet.");
+        if ((s.invoices || []).some((r) => r.sourceSale === source.id))
+          error("This sale already has an invoice document.");
+        if (
+          record.quantity !== source.litres ||
+          record.rate !== source.rate ||
+          record.amount !== source.amount
+        )
+          error("Invoice quantity and unit price must match the source sale.");
+        record.sourceSale = source.id;
+      }
       if (!s.invoices) s.invoices = [];
       s.invoices.push(record);
       message = "Draft invoice created; financial ledgers unchanged";
@@ -707,6 +784,110 @@
         "The transaction could not pass the ledger checks. No changes were saved.",
       );
     return { state: s, message };
+  }
+  function loadWorkflowSamples(state, ctx) {
+    if (ctx.role !== "Owner" || ctx.outlet !== "all")
+      error(
+        "Select Owner and All outlets to load the complete sample workflow.",
+      );
+    if (
+      (state.operations || []).some(
+        (r) => r.kind === "settlement" && r.reference === "WF-DEMO-UPI",
+      )
+    )
+      return { state, message: "Complete workflow samples are already loaded" };
+    if (
+      !state.shifts.some((s) => s.outlet === "central" && s.status === "open")
+    )
+      error(
+        "The Central Avenue shift must be open. Return it for correction or reset sample data after exporting records.",
+      );
+    if (
+      (state.operations || []).some(
+        (r) => r.kind === "supplierBill" && r.receipt === "GR-100",
+      )
+    )
+      error(
+        "The sample fuel receipt is already billed. Use its existing supplier account or reset the demo after exporting records.",
+      );
+    let s = state;
+    const post = (action, data) => {
+      s = apply(s, ctx, action, { outlet: "central", ...data }).state;
+    };
+    post("sale", {
+      nozzle: "central-N1",
+      closing: round(meter(s, "central-N1") + 100),
+      method: "Split",
+      customer: "central-fleet",
+      splitCash: 5000,
+      splitUPI: 3000,
+      splitCard: 2000,
+      splitCredit: 420,
+    });
+    const sale = s.sales.at(-1);
+    post("nozzleTest", {
+      nozzle: "central-N1",
+      litres: 5,
+      note: "Sample calibrated measure test",
+    });
+    const test = s.operations.at(-1);
+    post("testReturn", { test: test.id, litres: 5 });
+    post("settlement", {
+      sale: sale.id,
+      method: "UPI",
+      reference: "WF-DEMO-UPI",
+      fee: 10,
+      received: 2990,
+    });
+    post("settlement", {
+      sale: sale.id,
+      method: "Card",
+      reference: "WF-DEMO-CARD",
+      fee: 20,
+      received: 1970,
+    });
+    post("supplierBill", {
+      receipt: "GR-100",
+      reference: "WF-DEMO-BILL",
+      amount: 450000,
+    });
+    const bill = s.operations.at(-1);
+    post("supplierPay", {
+      bill: bill.id,
+      reference: "WF-DEMO-PAYMENT",
+      amount: 200000,
+    });
+    post("handover", {
+      outgoing: "Aarav Mehta (sample)",
+      incoming: "Kavita Rao (sample)",
+      counted:
+        expectedCash(
+          s,
+          s.shifts.find((r) => r.outlet === "central" && r.status === "open")
+            .id,
+        ) /
+          100 -
+        200,
+      note: "Sample INR 200 shortage recorded at handover",
+    });
+    post("invoice", {
+      sourceSale: sale.id,
+      reference: "WF-DEMO-INV",
+      date: "2026-11-03",
+      seller: "Central Avenue Fuel Station (sample)",
+      recipient: "Meridian Logistics (sample)",
+      recipientType: "Customer",
+      address: "14 Sample Transport Park, Pune",
+      description: "Petrol supply - linked split sale",
+      quantity: sale.litres,
+      rate: sale.rate / 100,
+      unit: "L",
+      note: "References an already posted sale; no second receivable posting.",
+    });
+    return {
+      state: s,
+      message: "All six workflow samples loaded; existing records preserved",
+    };
   }
   // Decimal input is bounded before conversion. Reject booleans, scientific notation,
   // whitespace-only values and precision that would silently change entered amounts.
@@ -841,7 +1022,6 @@
           !volume(r.closing) ||
           !volume(r.litres) ||
           r.litres <= 0 ||
-          r.opening !== meters.get(r.nozzle) ||
           round(r.closing - r.opening) !== r.litres
         )
           return false;
@@ -855,11 +1035,31 @@
         )
           return false;
         if (
-          !["Cash", "UPI", "Card", "Credit"].includes(r.method) ||
-          (r.method === "Credit" && !sameCustomer(r)) ||
-          (r.method !== "Credit" && r.customer !== null)
+          !["Cash", "UPI", "Card", "Credit", "Split"].includes(r.method) ||
+          (Ops.tender(r, "Credit") > 0 && !sameCustomer(r)) ||
+          (Ops.tender(r, "Credit") === 0 && r.customer !== null)
         )
           return false;
+        if (
+          r.method === "Split" &&
+          (!r.tenders ||
+            Object.keys(r.tenders).sort().join(",") !==
+              "Card,Cash,Credit,UPI" ||
+            Object.values(r.tenders).some((n) => !int(n)) ||
+            sum(Object.values(r.tenders), (n) => n) !== r.amount ||
+            Object.values(r.tenders).filter((n) => n > 0).length < 2)
+        )
+          return false;
+      }
+      if (!Ops.valid(s)) return false;
+      for (const r of [
+        ...s.sales,
+        ...(s.operations || []).filter((r) => r.kind === "nozzleTest"),
+      ].sort(
+        (a, b) =>
+          Number(a.id.split("-").at(-1)) - Number(b.id.split("-").at(-1)),
+      )) {
+        if (r.opening !== meters.get(r.nozzle)) return false;
         meters.set(r.nozzle, r.closing);
       }
       const dockets = new Set();
@@ -955,6 +1155,20 @@
             references.has(r.reference.toLowerCase())
           )
             return false;
+          if (r.sourceSale) {
+            const source = s.sales.find(
+              (x) => x.id === r.sourceSale && x.outlet === r.outlet,
+            );
+            if (
+              !source ||
+              r.quantity !== source.litres ||
+              r.rate !== source.rate ||
+              r.amount !== source.amount ||
+              s.invoices.filter((x) => x.sourceSale === r.sourceSale).length !==
+                1
+            )
+              return false;
+          }
           ids.add(r.id);
           references.add(r.reference.toLowerCase());
           if (
@@ -1011,6 +1225,8 @@
   }
 
   return {
+    tender: Ops.tender,
+    Ops,
     DAY,
     KEY,
     ROLES,

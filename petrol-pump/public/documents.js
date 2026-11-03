@@ -28,6 +28,7 @@
       "",
       "Invoice: " + r.reference,
       "Date: " + r.date,
+      ...(r.sourceSale ? ["Source sale: " + r.sourceSale] : []),
       "Seller: " + r.seller,
       "",
       "Bill to: " + r.recipient,
@@ -43,7 +44,7 @@
       "",
       ...(r.note ? ["Note: " + r.note, ""] : []),
       "No tax calculation or statutory invoice validation is included.",
-      "No stock, receivable, cash or payment posting has been made.",
+      "This document creates no additional stock, cash or receivable posting.",
       "Sample data for presentation only.",
     ];
     const wrapped = lines.flatMap((line) => {

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "test": "node tests/core.cjs && node tests/storage.cjs && node tests/invoices.cjs && node tests/dom.cjs && node tests/build.mjs",
+    "test": "node tests/core.cjs && node tests/storage.cjs && node tests/invoices.cjs && node tests/workflows.cjs && node tests/dom.cjs && node tests/build.mjs",
     "start": "python3 -m http.server 8770 --bind 127.0.0.1 --directory dist",
     "build": "node scripts/build.mjs",
     "format": "prettier --write public scripts tests *.json *.md render.yaml",

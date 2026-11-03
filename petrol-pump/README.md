@@ -6,7 +6,7 @@ A new, independent client presentation app. It does not modify or share state wi
 
 - Owner overview with consolidated or outlet-specific sales, stock, fleet dues, indicative fuel margin and exceptions.
 - Three fictional outlets; six tanks and six nozzles; 24 seeded sales with four tender types.
-- Eleven owner screens: Overview, Outlet performance, Sales & nozzles, Tank inventory, Fuel receipts, Shift reconciliation, Fleet & credit, Expenses, Maintenance, Reports, Activity log.
+- Sixteen owner screens: Overview, Outlet performance, Sales & nozzles, Tank inventory, Fuel receipts, Shift reconciliation, Fleet & credit, Expenses, Maintenance, Reports, Activity log.
 - Station manager and Accountant demo workspaces with relevant navigation and outlet-specific records. The outlet selector simulates switching assigned stations; it is not real authorization.
 - Meter-increment sales, tank receipts, measured-stock observations, cash closing, independent-role review, next shift, fleet collections, expenses and maintenance tasks.
 - CSV sales export, print summary, presentation guide and reset with confirmation.
@@ -47,7 +47,7 @@ The in-app Presentation guide covers this flow. Reset sample data restores the o
 
 This is a browser-local presentation prototype, not a production ERP. Demo roles are not login security. Records are not synchronized between users or devices, and the local activity log is not tamper-proof. Do not enter real financial, customer or employee information.
 
-No pump-controller, ATG, OMC, payment-gateway, banking, accounting or statutory filing integration is connected. No automated stock adjustment, temperature/density normalization, calibrated dip-height conversion, nozzle testing return, meter rollover, split tender, refund, bank-settlement reconciliation or supplier-payable ledger is implemented. One meter increment has one tender; production shift reconciliation must support the client's actual tender and test-return rules. Prices are sample values, not current fuel rates. Local regulations, dealer agreements, accounting/tax treatment and measurement practices need specialist and client verification.
+No pump-controller, ATG, OMC, payment-gateway, banking, accounting or statutory filing integration is connected. Tax treatment, temperature/density normalization, calibrated dip conversion, price changes, meter rollover and refunds remain production scope. Split tenders, recorded nozzle tests/returns, manual settlement matching, receipt-linked supplier bills, bank payments, staff handover and sale-linked draft documents are implemented as browser-local workflows. Prices and limits are illustrative and require client validation.
 
 A service task marked complete records a demonstration action, not a valid certificate or inspection. The model borrows the generic concept of comparing measured stock against receipts and sales from the [EPA inventory-control overview](https://www.epa.gov/ust/release-detection-underground-storage-tanks-internal-methods); this does not apply US regulatory rules to an Indian client or claim certified leak detection.
 
@@ -109,3 +109,22 @@ Owner / All outlets → Invoices & sharing includes three fictional draft docume
 - `DEMO-DEAL-001`: Eastern Fuel Dealers, Highway Junction, 24 sample lubricant cans × INR 450 = **INR 10,800**.
 
 On an existing browser workspace, click **Load sample invoices**. Existing documents and transactions are preserved; repeat loading does not duplicate matching sample references. Station roles load only their selected outlet's example. Click **Preview & share → Set WhatsApp number** to use your own number including country code for the presentation. Numbers are blank initially; WhatsApp opens its recipient picker when no number is set. No message is sent by the application. Download the PDF, open the WhatsApp draft, attach the file, and press Send yourself. All documents remain marked Draft.
+
+## Complete six-workflow demonstration
+
+Owner → All outlets → Overview → **Load complete example**, then confirm. This preserves existing records and posts the following connected sample transactions in Central Avenue. Repeat loading does not duplicate the example. Central's shift must be open, and receipt GR-100 must not already be billed; otherwise use existing records or explicitly reset the demo after exporting a recovery copy.
+
+| Workflow              | Sample / expected result                                                                                                                                                                                                                                                    |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Split sale            | 100 L petrol, INR 10,420: Cash 5,000; UPI 3,000; Card 2,000; Credit 420. Stock falls 100 L; cash rises only 5,000; fleet dues rise only 420.                                                                                                                                |
+| Nozzle test & returns | 5 L drawn, then 5 L returned. Meter advances 5 L; no sales revenue; net stock movement zero. Partial returns are supported and excessive returns blocked.                                                                                                                   |
+| Digital settlements   | UPI gross 3,000 minus fee 10 matches bank 2,990. Card gross 2,000 minus fee 20 expects 1,980, with bank 1,970 showing a 10 shortfall. No second sale or cash-in-drawer entry is created. Fees are shown in reconciliation and do not automatically post operating expenses. |
+| Supplier accounts     | Bill WF-DEMO-BILL for receipt GR-100: INR 4,50,000. Bank payment INR 2,00,000 leaves INR 2,50,000 payable. Bill booking does not add fuel to stock again.                                                                                                                   |
+| Staff handover        | Aarav Mehta → Kavita Rao, sample INR 200 cash shortage. Snapshot remains reviewable; the shift stays open. Subsequent sales carry the incoming operator's name.                                                                                                             |
+| Sale-linked invoice   | WF-DEMO-INV references the already-posted split sale. It carries the same litres, rate and amount, and creates no duplicate receivable. Download/WhatsApp flow is unchanged.                                                                                                |
+
+Use the corresponding navigation registers to demonstrate and add further entries. Station manager may record tests, returns and handovers. Owner/Accountant may reconcile bank entries and record supplier bills/payments. These are simulated role permissions. Split payment allocations and operator names are included in the sales CSV. Older saved workspaces without the new operations array remain valid.
+
+On the original opening dataset after this complete example, group sales are INR 14,01,340, volume 14,500 L, book stock 70,288 L and fleet outstanding INR 3,90,512. Existing demo actions change these totals, so reset explicitly first if you need exact baseline figures.
+
+The added workflow and DOM regression tests cover all six business flows, duplicate and overpayment guards, meter continuity through testing, partial returns, closed shifts, source invoice integrity, operator attribution and idempotent example loading. Real authentication, a shared database and live external connections have deliberately not been set up, per the user's request to finish the presentation demo first.

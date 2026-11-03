@@ -53,6 +53,10 @@ The live deployment serves a CSP in its HTML and X-Content-Type-Options: nosniff
 
 ## Boundaries to explain if asked
 
-Actual staff accounts, multi-user shared data, tax/accounting treatment, split tenders, dispenser testing returns, price changes, meter rollover, ATG/OMC interfaces, supplier payables, settlement matching and tested disaster recovery remain production scope. The historical trend is fictional sample history. No equipment, bank or live depot is connected.
+Actual staff accounts, multi-user shared data, tax/accounting treatment, price changes, meter rollover, ATG/OMC interfaces and tested disaster recovery remain production scope. The historical trend is fictional sample history. No equipment, bank or live depot is connected.
 
 Visual rendering, mobile overflow, actual keyboard/screen-reader behavior, actual printed page layout and actual WhatsApp card appearance were not verified in a real browser or messaging app. Node simulations verify logic and generated markup, not those real-device behaviors. The downloadable recovery JSON has no import workflow yet.
+
+## Additional completed workflows
+
+The six business gaps identified after this review are now implemented. For the expanded meeting scenario, use Owner / All outlets → Load complete example. Follow the six-workflow table in README.md. Split sales, nozzle tests and returns, manual bank settlement matching, supplier bills and partial bank payments, staff handover and sale-linked invoice documents now have connected registers and regression tests. Production integration and browser-visual limitations above still apply.
