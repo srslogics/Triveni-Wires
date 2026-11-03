@@ -15,6 +15,7 @@
       "receipts",
       "shifts",
       "credit",
+      "invoices",
       "expenses",
       "maintenance",
       "reports",
@@ -27,6 +28,7 @@
       "receipts",
       "shifts",
       "credit",
+      "invoices",
       "expenses",
       "maintenance",
       "activity",
@@ -36,6 +38,7 @@
       "sales",
       "shifts",
       "credit",
+      "invoices",
       "expenses",
       "reports",
       "activity",
@@ -79,6 +82,7 @@
       tanks: [],
       nozzles: [],
       sales: [],
+      invoices: [],
       receipts: [],
       shifts: [],
       customers: [],
@@ -267,7 +271,7 @@
   }
   function rows(s, key, ctx) {
     const outlet = scope(s, ctx);
-    return s[key].filter(
+    return (s[key] || []).filter(
       (x) =>
         outlet === "all" ||
         x.outlet === outlet ||
@@ -301,6 +305,7 @@
     if (ctx.role !== "Owner" && outlet !== ctx.outlet)
       error("This outlet is outside the selected workspace.");
     const permission = {
+      invoice: ["Owner", "Manager", "Accountant"],
       sale: ["Owner", "Manager"],
       receipt: ["Owner", "Manager"],
       dip: ["Owner", "Manager"],
@@ -538,6 +543,57 @@
         status: "Open",
       });
       message = "Maintenance task added";
+    } else if (action === "invoice") {
+      const reference = txt(input.reference, "an invoice reference");
+      if (
+        (s.invoices || []).some(
+          (r) => r.reference.toLowerCase() === reference.toLowerCase(),
+        )
+      )
+        error("This invoice reference already exists.");
+      const date = String(input.date || "");
+      if (
+        !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+        !Number.isFinite(Date.parse(date)) ||
+        new Date(date).toISOString().slice(0, 10) !== date
+      )
+        error("Enter a valid invoice date.");
+      const phone = String(input.phone || "").replace(/[\s()+-]/g, "");
+      if (phone && !/^[1-9]\d{7,14}$/.test(phone))
+        error(
+          "Enter the country code and number, for example 919876543210, or leave it blank.",
+        );
+      if (
+        !["Customer", "Dealer", "Vendor", "Other"].includes(input.recipientType)
+      )
+        error("Choose a recipient type.");
+      const quantity = val(input.quantity, "quantity", 1e7, 3),
+        rate = Math.round(val(input.rate, "unit price", 1e7, 2) * 100),
+        amount = Math.round(quantity * rate);
+      if (!Number.isSafeInteger(amount) || amount <= 0 || amount > 1e11)
+        error("Invoice total is outside the supported range.");
+      const record = {
+        id: id("IN"),
+        outlet: o.id,
+        reference,
+        date,
+        seller: txt(input.seller, "the seller name"),
+        recipient: txt(input.recipient, "the recipient name"),
+        recipientType: input.recipientType,
+        phone,
+        address: txt(input.address, "the recipient address"),
+        description: txt(input.description, "an item description"),
+        quantity,
+        unit: txt(input.unit, "a unit"),
+        rate,
+        amount,
+        note: String(input.note || "").slice(0, 160),
+        status: "Draft",
+        time,
+      };
+      if (!s.invoices) s.invoices = [];
+      s.invoices.push(record);
+      message = "Draft invoice created; financial ledgers unchanged";
     } else if (action === "complete") {
       const task = s.tasks.find(
         (t) => t.id === input.task && t.outlet === o.id,
@@ -794,6 +850,57 @@
           new Date(t.due).toISOString().slice(0, 10) !== t.due
         )
           return false;
+      if (s.invoices !== undefined) {
+        if (!Array.isArray(s.invoices) || s.invoices.length > 20000)
+          return false;
+        const ids = new Set(),
+          references = new Set();
+        for (const r of s.invoices) {
+          if (
+            !r ||
+            !text(r.id, 80) ||
+            ids.has(r.id) ||
+            !text(r.reference) ||
+            references.has(r.reference.toLowerCase())
+          )
+            return false;
+          ids.add(r.id);
+          references.add(r.reference.toLowerCase());
+          if (
+            !s.outlets.some((o) => o.id === r.outlet) ||
+            !text(r.seller) ||
+            !text(r.recipient) ||
+            !text(r.address) ||
+            !text(r.description) ||
+            !text(r.unit) ||
+            !["Customer", "Dealer", "Vendor", "Other"].includes(
+              r.recipientType,
+            ) ||
+            r.status !== "Draft" ||
+            typeof r.phone !== "string" ||
+            (r.phone && !/^[1-9]\d{7,14}$/.test(r.phone))
+          )
+            return false;
+          if (
+            !/^\d{4}-\d{2}-\d{2}$/.test(r.date) ||
+            !Number.isFinite(Date.parse(r.date)) ||
+            new Date(r.date).toISOString().slice(0, 10) !== r.date ||
+            !iso(r.time)
+          )
+            return false;
+          if (
+            !volume(r.quantity) ||
+            r.quantity <= 0 ||
+            !int(r.rate) ||
+            r.rate <= 0 ||
+            !int(r.amount) ||
+            r.amount !== Math.round(r.quantity * r.rate) ||
+            r.amount <= 0 ||
+            Number(r.id.split("-").at(-1)) > s.sequence
+          )
+            return false;
+        }
+      }
       for (const a of s.audit)
         if (
           !iso(a.time) ||

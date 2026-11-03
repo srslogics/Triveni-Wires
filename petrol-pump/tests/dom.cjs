@@ -53,6 +53,7 @@ function boot(memory = {}, blocked = false) {
   const context = {
     document,
     FormData,
+    TextEncoder,
     console,
     Blob,
     URL: { createObjectURL: () => "blob:test", revokeObjectURL() {} },
@@ -76,7 +77,7 @@ function boot(memory = {}, blocked = false) {
     },
   };
   vm.createContext(context);
-  for (const f of ["storage.js", "core.js", "app.js"])
+  for (const f of ["storage.js", "core.js", "documents.js", "app.js"])
     vm.runInContext(fs.readFileSync("public/" + f, "utf8"), context);
   const fire = (selector, type = "click") => {
     assert($(selector), "Missing " + selector);
@@ -86,7 +87,7 @@ function boot(memory = {}, blocked = false) {
   };
   const fill = (values) => {
     for (const [key, value] of Object.entries(values)) {
-      $(`[name="${key}"]`).value = String(value);
+      $(`#transaction-form [name="${key}"]`).value = String(value);
     }
   };
   const change = (sel, val) => {
@@ -279,3 +280,48 @@ assert.equal(operational.$("#outlet-select").value, "highway");
 assert.equal(operational.$("h1").textContent, "Shift reconciliation");
 assert(operational.$("#main").textContent.includes("Highway Junction"));
 console.log("PASS operations-first overview and outlet-to-shift navigation");
+
+const billing = boot();
+billing.fire('nav [data-page="invoices"]');
+billing.fire('[data-action="invoice"]');
+billing.fill({
+  reference: "DOM-INV-001",
+  date: "2026-11-03",
+  seller: "Sample pump",
+  recipient: "Test <Dealer>",
+  recipientType: "Dealer",
+  address: "Sample address",
+  phone: "919876543210",
+  description: "Petrol supply",
+  quantity: "100",
+  rate: "104.20",
+  unit: "L",
+});
+billing.fire("#transaction-form", "submit");
+assert.equal(
+  billing.run("state.invoices.length"),
+  1,
+  billing.$("#form-error")?.textContent,
+);
+assert(billing.$("#invoice-sheet").textContent.includes("Test <Dealer>"));
+assert(!billing.$("#invoice-sheet").querySelector("Dealer"));
+const share = billing.$('#invoice-sheet a[href^="https://wa.me/"]');
+assert(share);
+assert(
+  share.getAttribute("href").startsWith("https://wa.me/919876543210?text="),
+);
+assert(share.getAttribute("href").includes("DOM-INV-001"));
+billing.fire('[data-action="invoice-pdf"]');
+assert.equal(billing.downloads[0], "Forecourt-DOM-INV-001.pdf");
+billing.fire('[data-action="invoice-print"]');
+assert(billing.events.print);
+const restoredBilling = boot(billing.memory);
+restoredBilling.fire('nav [data-page="invoices"]');
+assert(restoredBilling.$("#invoice-sheet").textContent.includes("DOM-INV-001"));
+billing.change("#role-select", "Manager");
+billing.change("#outlet-select", "airport");
+billing.fire('nav [data-page="invoices"]');
+assert(!billing.$("#invoice-sheet"));
+console.log(
+  "PASS invoice form, escaped preview, PDF download, print invocation, WhatsApp recipient/message, reload and outlet visibility",
+);

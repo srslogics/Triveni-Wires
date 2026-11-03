@@ -58,6 +58,7 @@ const labels = {
   receipts: "Fuel receipts",
   shifts: "Shift reconciliation",
   credit: "Fleet & credit",
+  invoices: "Invoices & sharing",
   expenses: "Expenses",
   maintenance: "Maintenance",
   reports: "Reports",
@@ -659,8 +660,77 @@ function activityPage() {
     )}</section><div class="note-box">Activity is stored on this browser. It is not an immutable production audit log.</div>`
   );
 }
+let selectedInvoice = null;
+function invoiceRecord(id) {
+  return C.rows(state, "invoices", ctx).find((r) => r.id === id);
+}
+function invoiceSheet(r) {
+  return `<section id="invoice-sheet" class="panel invoice-sheet"><div class="invoice-controls"><strong>Document preview</strong><div class="button-row">${act("invoice-pdf", "Download PDF", `data-id="${r.id}"`, "btn secondary")}${act("invoice-print", "Print / Save PDF", `data-id="${r.id}"`, "btn secondary")}<a class="btn primary" href="${esc(ForecourtDocuments.whatsapp(r))}" target="_blank" rel="noopener noreferrer">Open WhatsApp draft</a></div></div><div class="invoice-paper"><div class="invoice-heading"><div><div class="eyebrow">FORECOURT / DOCUMENTS</div><h2>DRAFT INVOICE</h2><p>Demonstration document · Not a tax invoice</p></div><div><strong>${esc(r.reference)}</strong><p>Date: ${r.date}</p></div></div><div class="invoice-parties"><div><small>FROM</small><h3>${esc(r.seller)}</h3><p>${esc(outlet(r.outlet).name)}</p></div><div><small>BILL TO · ${esc(r.recipientType.toUpperCase())}</small><h3>${esc(r.recipient)}</h3><p>${esc(r.address)}</p><p>${r.phone ? "+" + esc(r.phone) : "No WhatsApp number recorded"}</p></div></div>${table(["Description", "Quantity", "Unit price", "Amount"], [row([esc(r.description), `${r.quantity} ${esc(r.unit)}`, money(r.rate), money(r.amount)])])}<div class="invoice-total">Draft total <strong>${money(r.amount)}</strong></div>${r.note ? `<p class="invoice-note">${esc(r.note)}</p>` : ""}<p class="footnote">Draft only. No tax has been calculated or verified. This document has not posted stock, cash or receivables and is not proof of payment.</p></div></section>`;
+}
+function invoicesPage() {
+  const records = C.rows(state, "invoices", ctx),
+    current = records.find((r) => r.id === selectedInvoice) || records.at(-1);
+  return (
+    title(
+      "invoices",
+      "Prepare outgoing documents for customers, dealers, vendors or other recipients.",
+      act("invoice", "Create draft invoice", "", "btn primary"),
+    ) +
+    `<section class="panel invoice-register"><div class="panel-head"><h2>Outgoing draft register</h2><span class="register-label">${records.length} DOCUMENTS</span></div>${table(
+      [
+        "Reference / date",
+        "Outlet",
+        "Recipient",
+        "Draft total",
+        "Status",
+        "Action",
+      ],
+      [...records]
+        .reverse()
+        .map((r) =>
+          row([
+            `<strong>${esc(r.reference)}</strong><small>${r.date}</small>`,
+            esc(outlet(r.outlet).name),
+            `${esc(r.recipient)}<small>${esc(r.recipientType)}</small>`,
+            money(r.amount),
+            badge("Draft"),
+            act(
+              "invoice-view",
+              "Preview & share",
+              `data-id="${r.id}"`,
+              "text-btn",
+            ),
+          ]),
+        ),
+      "No invoices yet. Create a draft to preview, download and share.",
+    )}</section>${current ? invoiceSheet(current) : ""}<div class="note-box">To send the file: download the PDF, open the WhatsApp draft, attach the downloaded PDF and press Send in WhatsApp. Opening the draft does not send it. Recipients and amounts are entered manually; these documents do not alter the financial registers.</div>`
+  );
+}
+function downloadInvoice(id) {
+  const r = invoiceRecord(id);
+  if (!r) {
+    toast("This document is outside the selected outlet.");
+    return;
+  }
+  try {
+    const bytes = ForecourtDocuments.pdf(r),
+      a = document.createElement("a");
+    a.href = URL.createObjectURL(
+      new Blob([bytes], { type: "application/pdf" }),
+    );
+    a.download =
+      "Forecourt-" + r.reference.replace(/[^a-z0-9-]/gi, "_") + ".pdf";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    toast("PDF downloaded. Attach it in the WhatsApp conversation.");
+  } catch (e) {
+    toast(e.message);
+  }
+}
+
 const views = {
   overview,
+  invoices: invoicesPage,
   outlets: outletsPage,
   sales: salesPage,
   tanks: tanksPage,
@@ -711,6 +781,7 @@ function form(action, selected, id) {
     collect: "Record a fleet collection",
     expense: "Record an expense",
     task: "Add a maintenance task",
+    invoice: "Create a draft invoice",
   };
   openDialog(
     `<form id="transaction-form" data-kind="${action}" data-revision="${state.revision}" aria-describedby="form-error"><div class="modal-head"><div><div class="eyebrow">${action === "close" ? "CASH RECONCILIATION" : "NEW RECORD"}</div><h2 id="modal-title">${titleMap[action]}</h2></div><button type="button" class="icon-btn" data-action="dismiss" aria-label="Close dialog">${icon("close")}</button></div><div class="modal-body"><label class="field">Outlet<select name="outlet" id="form-outlet">${outletOptions(o)}</select></label><div id="dependent-fields"></div><p class="form-error" id="form-error" role="alert" tabindex="-1"></p></div><div class="modal-footer"><button type="button" data-action="dismiss" class="btn secondary">Cancel</button><button class="btn primary" type="submit">${action === "close" ? "Submit for review" : "Save record"}</button></div></form>`,
@@ -751,6 +822,83 @@ function formFields(action, o, id) {
       opts.map((p) => `<option>${p}</option>`).join(""),
     );
   let html = "";
+  if (action === "invoice")
+    html =
+      field(
+        "Seller / business name",
+        "seller",
+        "text",
+        outlet(o).name + " (sample)",
+        'required maxlength="160"',
+      ) +
+      field(
+        "Invoice reference",
+        "reference",
+        "text",
+        "DRAFT-" + (state.sequence + 1),
+        'required maxlength="80"',
+      ) +
+      field(
+        "Invoice date",
+        "date",
+        "date",
+        new Date().toISOString().slice(0, 10),
+        "required",
+      ) +
+      select(
+        "Recipient type",
+        "recipientType",
+        ["Customer", "Dealer", "Vendor", "Other"]
+          .map((v) => `<option>${v}</option>`)
+          .join(""),
+      ) +
+      field(
+        "Recipient / company name",
+        "recipient",
+        "text",
+        "",
+        'required maxlength="160"',
+      ) +
+      field(
+        "Recipient address",
+        "address",
+        "text",
+        "",
+        'required maxlength="160"',
+      ) +
+      field(
+        "WhatsApp number with country code (optional)",
+        "phone",
+        "tel",
+        "",
+        'maxlength="24" placeholder="e.g. 919876543210"',
+      ) +
+      field(
+        "Item description",
+        "description",
+        "text",
+        "",
+        'required maxlength="160"',
+      ) +
+      '<div class="form-grid">' +
+      field(
+        "Quantity",
+        "quantity",
+        "number",
+        "1",
+        'min="0.001" step="0.001" required',
+      ) +
+      field("Unit", "unit", "text", "L", 'required maxlength="20"') +
+      "</div>" +
+      field(
+        "Unit price (INR)",
+        "rate",
+        "number",
+        "",
+        'min="0.01" step="0.01" required',
+      ) +
+      field("Note (optional)", "note", "text", "", 'maxlength="160"') +
+      '<p class="footnote">Creates a draft document only. No tax calculation or financial posting. Review the recipient and attach the downloaded PDF yourself in WhatsApp.</p>';
   if (action === "sale")
     html =
       select(
@@ -1009,9 +1157,33 @@ document.addEventListener("click", (e) => {
       "collect",
       "expense",
       "task",
+      "invoice",
     ].includes(a)
   ) {
     form(a, o, id);
+    return;
+  }
+  if (a === "invoice-view") {
+    if (invoiceRecord(id)) {
+      selectedInvoice = id;
+      render();
+      $("#invoice-sheet")?.scrollIntoView?.({
+        behavior: "smooth",
+        block: "start",
+      });
+    }
+    return;
+  }
+  if (a === "invoice-pdf") {
+    downloadInvoice(id);
+    return;
+  }
+  if (a === "invoice-print") {
+    if (invoiceRecord(id)) {
+      selectedInvoice = id;
+      render();
+      window.print();
+    }
     return;
   }
   if (a === "dismiss") closeDialog();

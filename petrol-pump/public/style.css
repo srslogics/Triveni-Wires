@@ -1313,3 +1313,120 @@ dialog::backdrop {
     display: block;
   }
 }
+.invoice-sheet {
+  margin-top: 22px;
+  scroll-margin-top: 90px;
+}
+.invoice-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  background: #f5f7fa;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.invoice-controls a {
+  text-decoration: none;
+}
+.invoice-controls .button-row {
+  margin: 0;
+}
+.invoice-paper {
+  padding: 30px;
+}
+.invoice-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  border-bottom: 2px solid #172a40;
+  padding-bottom: 22px;
+  flex-wrap: wrap;
+}
+.invoice-heading h2 {
+  font-size: 25px;
+}
+.invoice-heading p {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 8px;
+}
+.invoice-parties {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  padding: 24px 0;
+}
+.invoice-parties h3 {
+  margin-top: 8px;
+}
+.invoice-parties p {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+}
+.invoice-total {
+  padding: 24px 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 35px;
+  align-items: center;
+}
+.invoice-total strong {
+  font-size: 26px;
+}
+.invoice-note {
+  font-size: 13px;
+  margin: 8px 0 16px;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 480px) {
+  .invoice-paper {
+    padding: 18px;
+  }
+  .invoice-parties {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .invoice-controls {
+    padding: 16px;
+  }
+  .invoice-controls .button-row {
+    width: 100%;
+  }
+  .invoice-controls .btn {
+    flex: 1;
+    white-space: normal;
+  }
+  .invoice-total {
+    justify-content: space-between;
+    gap: 16px;
+  }
+}
+@media print {
+  .invoice-register,
+  .invoice-controls {
+    display: none !important;
+  }
+  main:has(#invoice-sheet) > :not(#invoice-sheet) {
+    display: none !important;
+  }
+  .invoice-sheet {
+    margin: 0;
+    border: 0;
+  }
+  .invoice-paper {
+    padding: 0;
+  }
+  .invoice-parties {
+    grid-template-columns: 1fr 1fr;
+  }
+  .invoice-heading {
+    break-inside: avoid;
+  }
+  .invoice-total {
+    break-inside: avoid;
+  }
+}
