@@ -18,9 +18,9 @@ const fmt = (n, d = 0) =>
       minimumFractionDigits: d,
       maximumFractionDigits: d,
     }),
-  money = (n) => "₹" + fmt(n / 100),
+  money = (n) => "₹" + fmt(n / 100, n % 100 === 0 ? 0 : 2),
   rate = (n) => "₹" + fmt(n / 100, 2),
-  litres = (n) => fmt(n, Number.isInteger(n) ? 0 : 2) + " L";
+  litres = (n) => fmt(n, Number.isInteger(n) ? 0 : 3) + " L";
 const icons = {
   overview:
     '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',

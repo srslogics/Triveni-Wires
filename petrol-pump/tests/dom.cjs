@@ -264,3 +264,8 @@ assert.equal(changedForm.run("state.sales.length"), 24);
 console.log(
   "PASS recovery export, corrupt data write protection and storage-event stale form rejection",
 );
+
+assert.equal(a.run("money(12345)"), "₹123.45");
+assert.equal(a.run("money(-2050)"), "-₹20.50".replace("-₹", "₹-"));
+assert.equal(a.run("litres(0.001)"), "0.001 L");
+console.log("PASS paise and millilitre display precision");
