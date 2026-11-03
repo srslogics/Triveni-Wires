@@ -29,7 +29,7 @@ Money is stored as integer paise; stock and meter volumes are rounded to 0.001 L
 - Fleet outstanding = opening dues + credit sales − collections. Excess collections and new credit above the sample account limit are rejected.
 - Indicative fuel margin = sale amounts − captured sample landed fuel costs. Margin less recorded expenses is not net profit.
 
-Historical chart points for 27 October–1 November are illustrative daily snapshots, scaled to outlet for presentation. The current day's point comes from the transaction register. No live growth claims are shown.
+The opening screen shows the daily outlet-and-shift register, tank reconciliation, exceptions and tender totals. Historical sample snapshots remain in the demo dataset but are not shown as a trend chart.
 
 ## Presentation sequence
 
@@ -89,3 +89,7 @@ Dependencies are pinned in `package-lock.json`. Run `npm ci --ignore-scripts`, `
 Design references: [OWASP ASVS](https://asvs.owasp.org/), [OWASP HTTP headers](https://cheatsheetseries.owasp.org/cheatsheets/HTTP_Headers_Cheat_Sheet.html), [WCAG 2.2](https://www.w3.org/TR/WCAG22/). These guide individual improvements; the prototype has not been assessed as compliant with all requirements.
 
 Before production: individual authentication, server-enforced outlet access, transactional database posting and idempotency, immutable audit retention, tested backups/restores, monitoring, incident procedures, device integration testing, and client-approved measurement/accounting rules are still required. No certification or statutory compliance is implied by this prototype.
+
+## Operational interface redesign
+
+The overview prioritizes outlet shift status, expected cash, counted differences, low-stock flags and measured tank variance. Open shift links take the selected outlet directly to its reconciliation screen. A compact tender register replaces decorative payment bars and the historical trend chart. Styling uses a restrained navy/white scheme, flat ledger panels, tabular numerals and one responsive layout system. All operational screens retain the same shared data model. Browser visual QA remains unperformed at the user's request.

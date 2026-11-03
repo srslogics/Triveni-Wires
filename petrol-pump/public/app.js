@@ -231,19 +231,6 @@ function alerts() {
     );
   return a.filter((x) => C.ROLES[ctx.role].includes(x.page));
 }
-function chart() {
-  const selected = C.scope(state, ctx),
-    m = C.metrics(state, ctx);
-  const factor =
-    selected === "all"
-      ? 1
-      : [0.32, 0.43, 0.25][state.outlets.findIndex((o) => o.id === selected)];
-  const values = state.history
-    .map((h) => ({ ...h, litres: Math.round(h.litres * factor) }))
-    .concat({ label: "02 Nov", litres: m.litres });
-  const max = Math.max(...values.map((v) => v.litres), 1) * 1.15;
-  return `<div class="bar-chart" role="img" aria-label="Daily fuel volume: ${values.map((v) => v.label + " " + litres(v.litres)).join(", ")}"><div class="chart-scale"><span>${fmt(Math.ceil(max / 1000))}k L</span><span>${fmt(Math.ceil(max / 2000))}k L</span><span>0</span></div><div class="bars">${values.map((v, i) => `<div class="bar-col"><span class="bar-value">${fmt(v.litres / 1000, 1)}k</span><div class="bar-track"><div class="bar ${i === 6 ? "current" : ""}" style="height:${(v.litres / max) * 100}%"><span></span></div></div><span class="bar-label">${v.label}</span></div>`).join("")}</div></div>`;
-}
 function outletRows() {
   return (
     C.scope(state, ctx) === "all" ? state.outlets : [outlet(ctx.outlet)]
@@ -267,41 +254,91 @@ function outletRows() {
 function overview() {
   const m = C.metrics(state, ctx),
     a = alerts(),
-    methods = ["Cash", "UPI", "Card", "Credit"],
-    s = C.rows(state, "sales", ctx);
+    stations =
+      C.scope(state, ctx) === "all" ? state.outlets : [outlet(ctx.outlet)];
+  const shifts = C.rows(state, "shifts", ctx);
+  const tender = ["Cash", "UPI", "Card", "Credit"].map((method) =>
+    row([
+      method,
+      money(
+        C.sum(
+          C.rows(state, "sales", ctx).filter((s) => s.method === method),
+          (s) => s.amount,
+        ),
+      ),
+      method === "Credit"
+        ? "Customer receivable"
+        : method === "Cash"
+          ? "Included in shift cash"
+          : "Settlement outside this demo",
+    ]),
+  );
+  const stationRows = stations.map((o) => {
+    const value = C.metrics(state, { role: "Owner", outlet: o.id }),
+      sh = shifts.filter((x) => x.outlet === o.id).at(-1);
+    const due = state.tanks.filter(
+      (t) => t.outlet === o.id && C.stock(state, t.id) < t.reorder,
+    ).length;
+    return row([
+      `<strong>${esc(o.name)}</strong><small>${esc(o.manager)}</small>`,
+      badge(
+        sh?.status || "No shift",
+        sh?.status === "approved"
+          ? "green"
+          : sh?.status === "submitted"
+            ? "amber"
+            : "blue",
+      ),
+      litres(value.litres),
+      money(value.sales),
+      money(sh ? C.expectedCash(state, sh.id) : 0),
+      sh?.counted !== null && sh?.counted !== undefined
+        ? badge(
+            money(sh.counted - sh.expected),
+            sh.counted === sh.expected ? "green" : "red",
+          )
+        : '<span class="pending-text">Not counted</span>',
+      due
+        ? badge(due + " low tank", "amber")
+        : badge("Within reorder level", "green"),
+      act("station-ledger", "Open shift", `data-id="${o.id}"`, "text-btn"),
+    ]);
+  });
+  const tanks = C.rows(state, "tanks", ctx).map((t) => {
+    const book = C.stock(state, t.id),
+      fresh = t.stockRevision === t.readingRevision;
+    return row([
+      `${esc(outlet(t.outlet).name)}<small>${t.name} · ${t.fuel}</small>`,
+      litres(book),
+      litres(t.physical),
+      fresh
+        ? badge(
+            litres(C.round(t.physical - book)),
+            t.physical === book ? "green" : "amber",
+          )
+        : badge("Reading required", "neutral"),
+      book < t.reorder ? badge("Reorder", "amber") : "—",
+    ]);
+  });
   return (
     title(
       "overview",
-      "A clear view of your forecourt. Every outlet, every shift.",
-      act("tour", "Presentation guide", "", "btn secondary") +
-        (can("sale") ? act("sale", "+ Record sale", "", "btn primary") : ""),
+      "Daily operating statement · Sales, stock and shift control",
+      act("tour", "Demo guide", "", "btn secondary") +
+        (can("sale")
+          ? act("sale", "Record meter sale", "", "btn primary")
+          : ""),
     ) +
-    `
- <div class="summary-strip"><span><i class="status-dot"></i> Sample operating day <strong>02 November 2026</strong></span><span>${C.scope(state, ctx) === "all" ? "3 outlets in view" : "1 outlet in view"}<b>·</b>Manual entry prototype</span></div>
- <section class="kpi-grid" aria-label="Business summary"><article class="kpi featured"><div class="kpi-label">Fuel sales value ${icon("sales")}</div><div class="kpi-value">${money(m.sales)}</div><div class="kpi-foot">${litres(m.litres)} dispensed across this workspace</div><div class="spark"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article><article class="kpi"><div class="kpi-label">Fuel available ${icon("tanks")}</div><div class="kpi-value">${fmt(m.stock)}<small>L</small></div><div class="kpi-foot">${m.low ? badge(m.low + " tank below reorder", "amber") : badge("Above reorder levels", "green")}</div></article><article class="kpi"><div class="kpi-label">Fleet outstanding ${icon("credit")}</div><div class="kpi-value">${money(m.credit)}</div><div class="kpi-foot">Opening dues + credit sales − collections</div></article><article class="kpi"><div class="kpi-label">Indicative fuel margin ${icon("reports")}</div><div class="kpi-value">${money(m.margin)}</div><div class="kpi-foot">Before ${money(m.expenses)} operating expenses</div></article></section>
- <div class="dashboard-grid"><section class="panel trend"><div class="panel-head"><div><h2>Fuel volume</h2><p>Daily sales across your selected outlets</p></div><span class="soft-chip">Last 7 sample days</span></div>${chart()}<div class="chart-note"><span class="legend-dot"></span> Historical sample totals <span class="legend-dot active"></span> Current day, calculated from sales</div></section><section class="panel attention"><div class="panel-head"><h2>Needs your attention</h2><span class="count">${a.length}</span></div>${
-   a.length
-     ? a
-         .slice(0, 3)
-         .map(
-           (x) =>
-             `<button class="alert-row" data-page="${x.page}"><span class="alert-icon ${x.type}">${icon("alert")}</span><span><strong>${esc(x.title)}</strong><small>${esc(x.detail)}</small></span>${icon("chevron")}</button>`,
-         )
-         .join("")
-     : '<div class="empty">No stock or shift exceptions in this workspace.</div>'
- }<button class="panel-link" data-action="exceptions">Review all exceptions ${icon("arrow")}</button></section></div>
- <div class="dashboard-bottom"><section class="panel"><div class="panel-head"><div><h2>Outlet performance</h2><p>Sales and stock health at a glance</p></div>${ctx.role === "Owner" ? '<button class="text-btn" data-page="outlets">View outlets ↗</button>' : ""}</div>${table(["Outlet", "Sales value", "Volume", "Daily target", "Stock status", ""], outletRows())}</section><section class="panel payments"><div class="panel-head"><h2>Sales by payment</h2></div><div class="payment-total">${money(m.sales)}<small>Recorded fuel sales</small></div>${methods
-   .map((p, i) => {
-     const amt = C.sum(
-         s.filter((x) => x.method === p),
-         (x) => x.amount,
-       ),
-       pc = m.sales ? (amt / m.sales) * 100 : 0;
-     return `<div class="payment-line"><div><span><i style="background:var(--pay-${i})"></i>${p}</span><strong>${money(amt)}</strong></div><div class="payment-track"><b style="width:${pc}%;background:var(--pay-${i})"></b></div></div>`;
-   })
-   .join(
-     "",
-   )}<p class="footnote">Credit is receivable, not a cash collection.</p></section></div>`
+    `<div class="operating-line"><span><strong>BUSINESS DATE</strong> 02 Nov 2026 <span class="sample-label">Sample day</span></span><span>${stations.length} outlet${stations.length === 1 ? "" : "s"} · ${shifts.filter((s) => s.status === "open").length} open shift${shifts.filter((s) => s.status === "open").length === 1 ? "" : "s"} · ${shifts.filter((s) => s.status === "submitted").length} awaiting review</span></div>
+ <section class="kpi-grid" aria-label="Business summary">
+ <article class="kpi"><div class="kpi-label">Fuel sales</div><div class="kpi-value">${money(m.sales)}</div><div class="kpi-foot">${litres(m.litres)} · Recorded meter movements</div></article>
+ <article class="kpi"><div class="kpi-label">Book fuel stock</div><div class="kpi-value">${litres(m.stock)}</div><div class="kpi-foot">${m.low} tank${m.low === 1 ? "" : "s"} below reorder level</div></article>
+ <article class="kpi"><div class="kpi-label">Fleet receivables</div><div class="kpi-value">${money(m.credit)}</div><div class="kpi-foot">Opening dues + sales − receipts</div></article>
+ <article class="kpi"><div class="kpi-label">Indicative fuel margin</div><div class="kpi-value">${money(m.margin)}</div><div class="kpi-foot">Before ${money(m.expenses)} recorded expenses</div></article></section>
+ <section class="panel"><div class="panel-head"><div><h2>Outlet & shift register</h2><p>Expected cash includes float and cash collections, less cash expenses.</p></div><span class="register-label">02 NOV / DAILY CONTROL</span></div>${table(["Outlet / manager", "Shift status", "Volume sold", "Fuel sales", "Expected cash", "Cash difference", "Stock position", "Action"], stationRows)}</section>
+ <div class="operations-columns"><section class="panel"><div class="panel-head"><div><h2>Tank reconciliation</h2><p>Physical readings against book stock; differences require review.</p></div><button class="text-btn" data-page="${C.ROLES[ctx.role].includes("tanks") ? "tanks" : "sales"}">Open register</button></div>${table(["Outlet / tank", "Book stock", "Last measured", "Difference", "Action"], tanks)}</section>
+ <section class="panel"><div class="panel-head"><h2>Exceptions to review</h2><span class="count">${a.length}</span></div>${a.length ? a.map((x) => `<button class="alert-row" data-page="${x.page}"><span class="exception-rule ${x.type}"></span><span><strong>${esc(x.title)}</strong><small>${esc(x.detail)}</small></span>${icon("chevron")}</button>`).join("") : '<p class="empty">No open exceptions in this workspace.</p>'}</section></div>
+ <section class="panel section-gap"><div class="panel-head"><div><h2>Tender summary</h2><p>Sales classification; bank settlement is not connected.</p></div><span class="register-label">INR</span></div>${table(["Tender", "Recorded sales", "Treatment"], tender)}</section>`
   );
 }
 function outletsPage() {
@@ -640,7 +677,7 @@ function render() {
   if (!C.ROLES[ctx.role].includes(page)) page = "overview";
   const count = alerts().length;
   $("#app").innerHTML =
-    `<aside class="sidebar ${menu ? "open" : ""}"><a class="brand" href="#overview" data-page="overview" aria-label="Forecourt overview"><span class="brand-mark">F<span></span></span><span>forecourt<small>RETAIL OPERATIONS</small></span></a><div class="workspace-label">WORKSPACE</div><nav id="primary-nav" aria-label="Main navigation">${C.ROLES[ctx.role].map((p, i) => `${i === 1 ? '<div class="nav-label">OPERATIONS</div>' : i === 8 ? '<div class="nav-label">MANAGEMENT</div>' : ""}<button data-page="${p}" class="nav-item ${page === p ? "selected" : ""}" ${page === p ? 'aria-current="page"' : ""}>${icon(p)}<span>${labels[p]}</span>${p === "tanks" && count ? '<i class="nav-pip"></i>' : ""}</button>`).join("")}</nav><div class="sidebar-bottom"><div class="demo-mark"><span class="status-dot"></span> CLIENT PRESENTATION</div><p>Fictional outlets & sample data.<br>Saved on this browser.</p><button class="sidebar-help" data-action="tour">Presentation guide ${icon("arrow")}</button></div></aside><div class="shell"><header class="topbar"><div class="top-left"><button class="icon-btn mobile-menu" data-action="menu" aria-label="Toggle navigation" aria-controls="primary-nav" aria-expanded="${menu}">${icon("menu")}</button><span class="breadcrumb">Workspace <span>/</span> ${labels[page]}</span></div><div class="top-controls"><label class="select-wrap">${icon("outlets")}<span class="sr-only">Outlet</span><select id="outlet-select" aria-label="Outlet">${ctx.role === "Owner" ? `<option value="all" ${ctx.outlet === "all" ? "selected" : ""}>All outlets</option>` : ""}${state.outlets.map((o) => `<option value="${o.id}" ${ctx.outlet === o.id ? "selected" : ""}>${o.name}</option>`).join("")}</select></label><span class="top-divider"></span><div class="avatar">${ctx.role === "Owner" ? "OW" : ctx.role === "Manager" ? "SM" : "AC"}</div><label class="role-label"><span>Demo role</span><select id="role-select" aria-label="Demo role">${Object.keys(
+    `<aside class="sidebar ${menu ? "open" : ""}"><a class="brand" href="#overview" data-page="overview" aria-label="Forecourt overview"><span class="brand-mark">F<span></span></span><span>forecourt<small>FUEL RETAIL MANAGEMENT</small></span></a><div class="workspace-label">WORKSPACE</div><nav id="primary-nav" aria-label="Main navigation">${C.ROLES[ctx.role].map((p, i) => `${i === 1 ? '<div class="nav-label">OPERATIONS</div>' : i === 8 ? '<div class="nav-label">MANAGEMENT</div>' : ""}<button data-page="${p}" class="nav-item ${page === p ? "selected" : ""}" ${page === p ? 'aria-current="page"' : ""}>${icon(p)}<span>${labels[p]}</span>${p === "tanks" && count ? '<i class="nav-pip"></i>' : ""}</button>`).join("")}</nav><div class="sidebar-bottom"><div class="demo-mark"><span class="status-dot"></span> DEMONSTRATION DATA</div><p>Fictional outlets & sample data.<br>Saved on this browser.</p><button class="sidebar-help" data-action="tour">Presentation guide ${icon("arrow")}</button></div></aside><div class="shell"><header class="topbar"><div class="top-left"><button class="icon-btn mobile-menu" data-action="menu" aria-label="Toggle navigation" aria-controls="primary-nav" aria-expanded="${menu}">${icon("menu")}</button><span class="breadcrumb">Workspace <span>/</span> ${labels[page]}</span></div><div class="top-controls"><label class="select-wrap">${icon("outlets")}<span class="sr-only">Outlet</span><select id="outlet-select" aria-label="Outlet">${ctx.role === "Owner" ? `<option value="all" ${ctx.outlet === "all" ? "selected" : ""}>All outlets</option>` : ""}${state.outlets.map((o) => `<option value="${o.id}" ${ctx.outlet === o.id ? "selected" : ""}>${o.name}</option>`).join("")}</select></label><span class="top-divider"></span><div class="avatar">${ctx.role === "Owner" ? "OW" : ctx.role === "Manager" ? "SM" : "AC"}</div><label class="role-label"><span>Demo role</span><select id="role-select" aria-label="Demo role">${Object.keys(
       C.ROLES,
     )
       .map(
@@ -978,6 +1015,12 @@ document.addEventListener("click", (e) => {
     return;
   }
   if (a === "dismiss") closeDialog();
+  if (a === "station-ledger") {
+    ctx.outlet = id;
+    page = "shifts";
+    render();
+    window.scrollTo(0, 0);
+  }
   if (a === "outlet") {
     ctx.outlet = id;
     page = "overview";

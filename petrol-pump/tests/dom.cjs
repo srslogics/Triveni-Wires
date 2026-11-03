@@ -269,3 +269,13 @@ assert.equal(a.run("money(12345)"), "₹123.45");
 assert.equal(a.run("money(-2050)"), "-₹20.50".replace("-₹", "₹-"));
 assert.equal(a.run("litres(0.001)"), "0.001 L");
 console.log("PASS paise and millilitre display precision");
+
+const operational = boot();
+assert(operational.$("#main").textContent.includes("Outlet & shift register"));
+assert(operational.$("#main").textContent.includes("Tank reconciliation"));
+assert(!operational.$(".bar-chart"));
+operational.fire('[data-action="station-ledger"][data-id="highway"]');
+assert.equal(operational.$("#outlet-select").value, "highway");
+assert.equal(operational.$("h1").textContent, "Shift reconciliation");
+assert(operational.$("#main").textContent.includes("Highway Junction"));
+console.log("PASS operations-first overview and outlet-to-shift navigation");
