@@ -1430,3 +1430,250 @@ dialog::backdrop {
     break-inside: avoid;
   }
 }
+/* Fewer work areas, contextual navigation and connected next steps. */
+.nav-group {
+  margin: 5px 0;
+  border-bottom: 1px solid #ffffff0e;
+  padding-bottom: 5px;
+}
+.nav-group > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  color: #d3dfe8;
+  font-size: 13px;
+  font-weight: 550;
+}
+.nav-group > summary::-webkit-details-marker {
+  display: none;
+}
+.nav-group > summary span {
+  color: #9fb6c8;
+}
+.nav-group[open] > summary {
+  color: #fff;
+}
+.nav-group .nav-item {
+  padding-left: 24px;
+  font-size: 12px;
+}
+.nav-group .nav-item svg {
+  width: 15px;
+}
+.workspace-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--line);
+  margin: -5px 0 24px;
+}
+.workspace-tabs button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: #5b7083;
+  font-size: 12px;
+  padding: 11px 14px;
+  min-height: 42px;
+}
+.workspace-tabs [aria-current="page"] {
+  border-bottom-color: #185f82;
+  color: #174d6b;
+  font-weight: 650;
+}
+.task-search-btn {
+  background: #f7f9fb;
+  border: 1px solid #d7e0e8;
+  min-height: 38px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #526a7e;
+}
+.task-search-btn kbd {
+  font: 10px inherit;
+  color: #7c8e9e;
+}
+.next-step {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  background: #edf5f7;
+  border: 1px solid #c7dfe6;
+  border-left: 3px solid #276a83;
+  padding: 16px 18px;
+  margin-bottom: 22px;
+}
+.next-step strong {
+  font-size: 13px;
+}
+.next-step p {
+  font-size: 12px;
+  color: #526f80;
+  line-height: 1.7;
+  margin-top: 5px;
+}
+.next-step .button-row {
+  margin: 0;
+}
+.task-result {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: white;
+  padding: 14px 6px;
+}
+.task-result:hover {
+  background: #f3f7fa;
+}
+.task-result strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 550;
+}
+.task-result small {
+  display: block;
+  margin-top: 4px;
+}
+.entry-context {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-left: 3px solid #548098;
+  background: #f1f5f8;
+  padding: 11px 14px;
+  margin-bottom: 18px;
+}
+.entry-context strong {
+  font-size: 13px;
+}
+.entry-context span {
+  font-size: 11px;
+  color: #60778a;
+}
+.entry-details {
+  border-top: 1px solid var(--line);
+  margin-top: 20px;
+  padding-top: 10px;
+}
+.entry-details summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: #42637c;
+  padding: 10px 0;
+}
+.entry-details[open] summary {
+  margin-bottom: 12px;
+}
+.top-left {
+  flex-wrap: wrap;
+}
+.breadcrumb {
+  display: none;
+}
+.nav-group summary:focus-visible {
+  outline: 3px solid #71b2d0;
+  outline-offset: -3px;
+}
+@media (max-width: 900px) {
+  .task-search-btn kbd {
+    display: none;
+  }
+  .task-search-btn {
+    gap: 0;
+    padding: 8px;
+  }
+  .top-left {
+    flex-wrap: nowrap;
+    gap: 5px;
+  }
+  .next-step .button-row {
+    width: 100%;
+  }
+  .next-step .btn {
+    flex: 1;
+  }
+  .workspace-tabs {
+    margin-top: 0;
+    gap: 0;
+  }
+  .workspace-tabs button {
+    padding: 9px 11px;
+  }
+  .top-controls {
+    gap: 5px;
+  }
+  .select-wrap select {
+    max-width: 135px;
+  }
+  .role-label select {
+    max-width: 115px;
+  }
+}
+@media (max-width: 480px) {
+  .task-search-btn {
+    font-size: 0;
+    width: 34px;
+    justify-content: center;
+  }
+  .task-search-btn:before {
+    content: "⌕";
+    font-size: 24px;
+    line-height: 1;
+  }
+  .select-wrap select {
+    max-width: 115px;
+  }
+  .role-label select {
+    max-width: 106px;
+  }
+  .topbar {
+    gap: 3px;
+  }
+  .workspace-tabs button {
+    font-size: 11px;
+    padding: 9px;
+  }
+  .next-step {
+    padding: 14px;
+  }
+  .entry-context span {
+    line-height: 1.7;
+  }
+}
+@media print {
+  .workspace-tabs,
+  .next-step {
+    display: none !important;
+  }
+}
+.help-disclosure {
+  padding: 11px 16px;
+}
+.help-disclosure summary {
+  cursor: pointer;
+  font-weight: 550;
+  font-size: 12px;
+}
+.help-disclosure > div {
+  margin-top: 12px;
+  line-height: 1.8;
+}
+.task-search-btn kbd {
+  font: inherit;
+  font-size: 10px;
+}
+.workspace-tabs button:hover {
+  background: #edf2f6;
+}

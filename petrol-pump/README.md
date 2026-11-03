@@ -128,3 +128,13 @@ Use the corresponding navigation registers to demonstrate and add further entrie
 On the original opening dataset after this complete example, group sales are INR 14,01,340, volume 14,500 L, book stock 70,288 L and fleet outstanding INR 3,90,512. Existing demo actions change these totals, so reset explicitly first if you need exact baseline figures.
 
 The added workflow and DOM regression tests cover all six business flows, duplicate and overpayment guards, meter continuity through testing, partial returns, closed shifts, source invoice integrity, operator attribution and idempotent example loading. Real authentication, a shared database and live external connections have deliberately not been set up, per the user's request to finish the presentation demo first.
+
+## Simpler daily use
+
+All 16 Owner features remain available, organized into five work areas: Today, Sales & shifts, Fuel stock, Accounts and Management. Only the active area's menu is expanded by default; related registers also appear as tabs above the workspace. Demo role policies and outlet scoping are unchanged.
+
+Use **Find a task** (or Ctrl/Cmd K) to search registers and available actions. Search results respect the selected role's actions. Saving a record can offer its next step with the same outlet and source preselected: sale → linked invoice → preview/share; fuel receipt → supplier bill → payment; nozzle test → fuel return; staff handover → shift closing. Staff can dismiss the suggestion and continue elsewhere. Shift approval still requires selecting a separate reviewing role.
+
+Forms display outlet and shift context. Invoice seller/reference/date/notes are grouped under Document details, with a live invoice total. Split payments display the remaining balance and offer an explicit button to assign that remainder to Cash; entered tender values are never silently rebalanced. Long explanatory notes appear under How this works. No features, validation or records were removed.
+
+Regression checks include all 126 role/outlet/module renders plus task search, complete navigation availability, role filtering, split helpers and the two linked multi-step entry journeys. Browser visual and assistive-technology verification remain unperformed under the user's no-browser instruction.

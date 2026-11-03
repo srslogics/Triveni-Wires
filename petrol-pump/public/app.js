@@ -141,6 +141,7 @@ function commit(action, input) {
       persisted.status === "volatile"
         ? "Storage is unavailable. Changes work for this visit only; download a recovery copy before leaving."
         : "";
+    uiNext = nextStepFor(action, state, input);
     closeDialog();
     render();
     $("#main")?.focus();
@@ -765,7 +766,7 @@ function render() {
   if (!C.ROLES[ctx.role].includes(page)) page = "overview";
   const count = alerts().length;
   $("#app").innerHTML =
-    `<aside class="sidebar ${menu ? "open" : ""}"><a class="brand" href="#overview" data-page="overview" aria-label="Forecourt overview"><span class="brand-mark">F<span></span></span><span>forecourt<small>FUEL RETAIL MANAGEMENT</small></span></a><div class="workspace-label">WORKSPACE</div><nav id="primary-nav" aria-label="Main navigation">${C.ROLES[ctx.role].map((p, i) => `${i === 1 ? '<div class="nav-label">OPERATIONS</div>' : i === 8 ? '<div class="nav-label">MANAGEMENT</div>' : ""}<button data-page="${p}" class="nav-item ${page === p ? "selected" : ""}" ${page === p ? 'aria-current="page"' : ""}>${icon(p)}<span>${labels[p]}</span>${p === "tanks" && count ? '<i class="nav-pip"></i>' : ""}</button>`).join("")}</nav><div class="sidebar-bottom"><div class="demo-mark"><span class="status-dot"></span> DEMONSTRATION DATA</div><p>Fictional outlets & sample data.<br>Saved on this browser.</p><button class="sidebar-help" data-action="tour">Presentation guide ${icon("arrow")}</button></div></aside><div class="shell"><header class="topbar"><div class="top-left"><button class="icon-btn mobile-menu" data-action="menu" aria-label="Toggle navigation" aria-controls="primary-nav" aria-expanded="${menu}">${icon("menu")}</button><span class="breadcrumb">Workspace <span>/</span> ${labels[page]}</span></div><div class="top-controls"><label class="select-wrap">${icon("outlets")}<span class="sr-only">Outlet</span><select id="outlet-select" aria-label="Outlet">${ctx.role === "Owner" ? `<option value="all" ${ctx.outlet === "all" ? "selected" : ""}>All outlets</option>` : ""}${state.outlets.map((o) => `<option value="${o.id}" ${ctx.outlet === o.id ? "selected" : ""}>${o.name}</option>`).join("")}</select></label><span class="top-divider"></span><div class="avatar">${ctx.role === "Owner" ? "OW" : ctx.role === "Manager" ? "SM" : "AC"}</div><label class="role-label"><span>Demo role</span><select id="role-select" aria-label="Demo role">${Object.keys(
+    `<aside class="sidebar ${menu ? "open" : ""}"><a class="brand" href="#overview" data-page="overview" aria-label="Forecourt overview"><span class="brand-mark">F<span></span></span><span>forecourt<small>FUEL RETAIL MANAGEMENT</small></span></a><div class="workspace-label">WORKSPACE</div><nav id="primary-nav" aria-label="Main navigation">${simpleNavigation()}</nav><div class="sidebar-bottom"><div class="demo-mark"><span class="status-dot"></span> DEMONSTRATION DATA</div><p>Fictional outlets & sample data.<br>Saved on this browser.</p><button class="sidebar-help" data-action="tour">Presentation guide ${icon("arrow")}</button></div></aside><div class="shell"><header class="topbar"><div class="top-left"><button class="icon-btn mobile-menu" data-action="menu" aria-label="Toggle navigation" aria-controls="primary-nav" aria-expanded="${menu}">${icon("menu")}</button><button class="task-search-btn" data-action="find-task">Find a task <kbd>⌘ / Ctrl K</kbd></button><span class="breadcrumb">Workspace <span>/</span> ${labels[page]}</span></div><div class="top-controls"><label class="select-wrap">${icon("outlets")}<span class="sr-only">Outlet</span><select id="outlet-select" aria-label="Outlet">${ctx.role === "Owner" ? `<option value="all" ${ctx.outlet === "all" ? "selected" : ""}>All outlets</option>` : ""}${state.outlets.map((o) => `<option value="${o.id}" ${ctx.outlet === o.id ? "selected" : ""}>${o.name}</option>`).join("")}</select></label><span class="top-divider"></span><div class="avatar">${ctx.role === "Owner" ? "OW" : ctx.role === "Manager" ? "SM" : "AC"}</div><label class="role-label"><span>Demo role</span><select id="role-select" aria-label="Demo role">${Object.keys(
       C.ROLES,
     )
       .map(
@@ -774,7 +775,8 @@ function render() {
       )
       .join(
         "",
-      )}</select></label></div></header><main id="main" tabindex="-1">${notice ? `<div class="notice" role="status">${esc(notice)}</div>` : ""}${views[page]()}</main><footer class="workspace-footer"><span>FORECOURT <b>·</b> Multi-outlet management prototype</span><div><span>No live dispenser or bank connections</span>${ctx.role === "Owner" ? '<button data-action="backup">Download recovery copy</button>' : ""}<button data-action="reset">Reset sample data</button></div></footer></div>`;
+      )}</select></label></div></header><main id="main" tabindex="-1">${notice ? `<div class="notice" role="status">${esc(notice)}</div>` : ""}${workspaceTabs()}${nextStepBanner()}${views[page]()}</main><footer class="workspace-footer"><span>FORECOURT <b>·</b> Multi-outlet management prototype</span><div><span>No live dispenser or bank connections</span>${ctx.role === "Owner" ? '<button data-action="backup">Download recovery copy</button>' : ""}<button data-action="reset">Reset sample data</button></div></footer></div>`;
+  applyHelpDisclosure();
 }
 function outletOptions(selected) {
   const options = ctx.role === "Owner" ? state.outlets : [outlet(ctx.outlet)];
@@ -1117,16 +1119,18 @@ function formFields(action, o, id) {
             )
             .map(
               (r) =>
-                `<option value="${r.id}">${r.id} · ${r.fuel} · ${money(r.amount)}</option>`,
+                `<option value="${r.id}" ${r.id === id ? "selected" : ""}>${r.id} · ${r.fuel} · ${money(r.amount)}</option>`,
             )
             .join(""),
       ) + html;
   html = workflowFields(action, o, id) ?? html;
   $("#dependent-fields").innerHTML = html;
+  polishEntry(action, o);
   updateHints();
 }
 function updateHints() {
   workflowHints();
+  helpfulTotals();
   const f = $("#transaction-form");
   if (!f) return;
   const read = (name) => f.querySelector(`[name="${name}"]`)?.value;
@@ -1299,6 +1303,58 @@ document.addEventListener("click", (e) => {
     commit("loadWorkflowSamples", { outlet: "central" });
     return;
   }
+  if (a === "find-task") {
+    openTaskSearch();
+    return;
+  }
+  if (a === "choose-task") {
+    const t = taskList()[Number(id)];
+    if (!t) return;
+    closeDialog();
+    if (t.page) {
+      page = t.page;
+      menu = false;
+      render();
+      $("#main")?.focus();
+    } else form(t.action);
+    return;
+  }
+  if (a === "dismiss-next") {
+    uiNext = null;
+    render();
+    return;
+  }
+  if (a === "follow-next") {
+    const n = uiNext;
+    if (!n) return;
+    if (n.page) {
+      ctx.outlet = n.outlet;
+      page = n.page;
+      if (n.page === "invoices") selectedInvoice = n.id;
+      uiNext = null;
+      render();
+      $("#main")?.focus();
+    } else form(n.action, n.outlet, n.id);
+    return;
+  }
+  if (a === "split-remainder") {
+    const f = $("#transaction-form"),
+      get = (n) => f.querySelector(`[name="${n}"]`),
+      noz = nozzle(get("nozzle").value),
+      qty = C.round(Number(get("closing").value) - C.meter(state, noz.id)),
+      amount = Math.round(qty * tank(noz.tank).rate),
+      other = ["UPI", "Card", "Credit"].reduce(
+        (n, k) => n + Math.round(Number(get("split" + k).value || 0) * 100),
+        0,
+      );
+    if (qty <= 0 || other > amount) {
+      toast("Check the meter reading and other payment amounts first.");
+      return;
+    }
+    get("splitCash").value = ((amount - other) / 100).toFixed(2);
+    updateHints();
+    return;
+  }
   if (a === "dismiss") closeDialog();
   if (a === "station-ledger") {
     ctx.outlet = id;
@@ -1354,6 +1410,7 @@ document.addEventListener("click", (e) => {
       toast("Saved data changed again. Review it and retry the reset.");
       return;
     }
+    uiNext = null;
     state = fresh;
     observedRaw = result.raw;
     notice =
@@ -1368,6 +1425,7 @@ document.addEventListener("click", (e) => {
 });
 document.addEventListener("change", (e) => {
   if (e.target.id === "role-select") {
+    uiNext = null;
     ctx.role = e.target.value;
     if (ctx.role !== "Owner" && ctx.outlet === "all")
       ctx.outlet = state.outlets[0].id;
@@ -1375,6 +1433,7 @@ document.addEventListener("change", (e) => {
     query = "";
     render();
   } else if (e.target.id === "outlet-select") {
+    uiNext = null;
     ctx.outlet = e.target.value;
     query = "";
     render();
@@ -1383,6 +1442,10 @@ document.addEventListener("change", (e) => {
   } else if (e.target.closest("#transaction-form")) updateHints();
 });
 document.addEventListener("input", (e) => {
+  if (e.target.id === "task-query") {
+    drawTaskResults(e.target.value);
+    return;
+  }
   if (e.target.id === "search") {
     query = e.target.value;
     const pos = e.target.selectionStart;
@@ -1396,6 +1459,12 @@ document.addEventListener("submit", (e) => {
   e.preventDefault();
   const data = Object.fromEntries(new FormData(e.target).entries());
   commit(e.target.dataset.kind, data);
+});
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+    e.preventDefault();
+    openTaskSearch();
+  }
 });
 window.addEventListener("storage", (e) => {
   if (e.key !== C.KEY && e.key !== null) return;

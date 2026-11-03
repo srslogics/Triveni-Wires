@@ -83,6 +83,7 @@ function boot(memory = {}, blocked = false) {
     "core.js",
     "documents.js",
     "workflows.js",
+    "usability.js",
     "app.js",
   ])
     vm.runInContext(fs.readFileSync("public/" + f, "utf8"), context);
@@ -403,4 +404,77 @@ assert(!completeDemo.$("#modal").open);
 assert.equal(completeDemo.run("state.invoices.at(-1).sourceSale"), source);
 console.log(
   "PASS complete workflow screens, tender allocation, nozzle test/return forms, settlement outcomes, partial supplier payment, staff handover and sale-linked invoice form",
+);
+
+const simple = boot();
+assert.equal(simple.$("#primary-nav").querySelectorAll("details").length, 4);
+assert.equal(
+  simple.$("#primary-nav").querySelectorAll("details[open]").length,
+  0,
+);
+assert.equal(
+  simple.$("#primary-nav").querySelectorAll("[data-page]").length,
+  16,
+);
+simple.fire('[data-action="find-task"]');
+simple.$("#task-query").value = "WhatsApp";
+simple.fire("#task-query", "input");
+assert(simple.$("#task-results").textContent.includes("Create an invoice"));
+const task = simple.$('#task-results [data-action="choose-task"]');
+simple.fire(`[data-action="choose-task"][data-id="${task.dataset.id}"]`);
+assert(simple.$("#transaction-form"));
+assert(simple.$(".entry-details"));
+simple.fire('[data-action="dismiss"]');
+simple.fire('[data-action="sale"]');
+simple.fill({ closing: 242200, method: "Split" });
+simple.fire('[name="method"]', "change");
+simple.fill({
+  splitUPI: 3000,
+  splitCard: 2000,
+  splitCredit: 420,
+  customer: "central-fleet",
+});
+simple.fire('[data-action="split-remainder"]');
+assert.equal(simple.$('[name="splitCash"]').value, "5000.00");
+assert(simple.$("#split-balance").textContent.includes("Balanced"));
+simple.fire("#transaction-form", "submit");
+assert(simple.$(".next-step").textContent.includes("Create invoice"));
+simple.fire('[data-action="follow-next"]');
+assert.equal(
+  simple.$('[name="sourceSale"]').value,
+  simple.run("state.sales.at(-1).id"),
+);
+assert.equal(simple.$('[name="quantity"]').value, "100");
+assert(simple.$("#invoice-total-hint").textContent.includes("10,420"));
+simple.fill({ address: "Sample customer address" });
+simple.fire("#transaction-form", "submit");
+assert(simple.$(".next-step").textContent.includes("Preview & share"));
+simple.fire('[data-action="follow-next"]');
+assert.equal(simple.$("h1").textContent, "Invoices & sharing");
+assert(simple.$("#invoice-sheet").textContent.includes("Source sale:"));
+const guided = boot();
+guided.fire('nav [data-page="receipts"]');
+assert(guided.$(".help-disclosure"));
+guided.fire('[data-action="receipt"]');
+guided.fill({
+  tank: "central-diesel",
+  docket: "GUIDED-DELIVERY",
+  supplier: "Sample Depot",
+  invoiced: 100,
+  received: 100,
+});
+guided.fire("#transaction-form", "submit");
+const receipt = guided.run("state.receipts.at(-1).id");
+guided.fire('[data-action="follow-next"]');
+assert.equal(guided.$('[name="receipt"]').value, receipt);
+guided.fill({ reference: "GUIDED-BILL", amount: 9000 });
+guided.fire("#transaction-form", "submit");
+const bill = guided.run("state.operations.at(-1).id");
+guided.fire('[data-action="follow-next"]');
+assert.equal(guided.$('[name="bill"]').value, bill);
+guided.fill({ reference: "GUIDED-BANK", amount: 1000 });
+guided.fire("#transaction-form", "submit");
+assert(!guided.$("#modal").open);
+console.log(
+  "PASS compact navigation without lost modules, task search, optional invoice details, split remainder helper, linked sale→invoice→share and receipt→bill→payment journeys",
 );
