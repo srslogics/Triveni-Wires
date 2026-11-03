@@ -99,3 +99,13 @@ The overview prioritizes outlet shift status, expected cash, counted differences
 Open **Invoices & sharing → Create draft invoice**. Enter the outlet, seller, reference, date, recipient type (Customer, Dealer, Vendor or Other), name, address and optional WhatsApp number including its country code. Add one description, quantity, unit and unit price. The register calculates an integer-paise total and rejects duplicate references, invalid dates/numbers and excessive precision. Staff can preview, download a PDF, or Print / Save PDF, then open a prefilled WhatsApp draft. Download the PDF and attach it manually in WhatsApp before pressing Send. The app does not send a message, upload invoices, check delivery or mark a document sent. No real message is sent by the demo itself.
 
 These are outgoing demonstration drafts, not validated tax invoices. No tax calculation is included; invoice drafts do not post stock, cash, receivables or vendor payables. This feature does not record purchase bills received from vendors. Production invoice numbering, multiple lines, tax treatment, posting, approval and real sending integrations require agreed requirements. Documents are kept only in this browser, scoped by the demo role/outlet. Existing version-1 records without an invoices array remain valid and are upgraded when the first draft is created. PDF download supports English/ASCII text; use Print / Save PDF for other scripts.
+
+### Ready-to-show invoice examples
+
+Owner / All outlets → Invoices & sharing includes three fictional draft documents:
+
+- `DEMO-CUST-001`: Meridian Logistics, Central Avenue, 1,000 L diesel × INR 91.75 = **INR 91,750**.
+- `DEMO-VEND-001`: Transit Tanker Services, Airport Road, sample handling-charge recovery = **INR 2,500**. This is an outgoing draft to a vendor, not a purchase bill received from one.
+- `DEMO-DEAL-001`: Eastern Fuel Dealers, Highway Junction, 24 sample lubricant cans × INR 450 = **INR 10,800**.
+
+On an existing browser workspace, click **Load sample invoices**. Existing documents and transactions are preserved; repeat loading does not duplicate matching sample references. Station roles load only their selected outlet's example. Click **Preview & share → Set WhatsApp number** to use your own number including country code for the presentation. Numbers are blank initially; WhatsApp opens its recipient picker when no number is set. No message is sent by the application. Download the PDF, open the WhatsApp draft, attach the file, and press Send yourself. All documents remain marked Draft.

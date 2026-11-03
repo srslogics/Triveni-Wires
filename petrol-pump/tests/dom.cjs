@@ -300,7 +300,7 @@ billing.fill({
 billing.fire("#transaction-form", "submit");
 assert.equal(
   billing.run("state.invoices.length"),
-  1,
+  4,
   billing.$("#form-error")?.textContent,
 );
 assert(billing.$("#invoice-sheet").textContent.includes("Test <Dealer>"));
@@ -321,7 +321,27 @@ assert(restoredBilling.$("#invoice-sheet").textContent.includes("DOM-INV-001"));
 billing.change("#role-select", "Manager");
 billing.change("#outlet-select", "airport");
 billing.fire('nav [data-page="invoices"]');
-assert(!billing.$("#invoice-sheet"));
+assert(!billing.$("#invoice-sheet").textContent.includes("DOM-INV-001"));
 console.log(
   "PASS invoice form, escaped preview, PDF download, print invocation, WhatsApp recipient/message, reload and outlet visibility",
+);
+const samples = boot();
+samples.fire('nav [data-page="invoices"]');
+assert(samples.$("#main").textContent.includes("DEMO-CUST-001"));
+assert(samples.$("#main").textContent.includes("DEMO-VEND-001"));
+assert(samples.$("#main").textContent.includes("DEMO-DEAL-001"));
+samples.fire('[data-action="load-invoice-samples"]');
+assert.equal(samples.run("state.invoices.length"), 3);
+samples.fire('[data-action="invoice-contact"]');
+samples.fill({ phone: "919876543210" });
+samples.fire("#transaction-form", "submit");
+assert(!samples.$("#modal").open);
+assert(
+  samples
+    .$('#invoice-sheet a[href^="https://wa.me/"]')
+    .getAttribute("href")
+    .includes("/919876543210?"),
+);
+console.log(
+  "PASS sample invoice register, repeat load and recipient number editing",
 );

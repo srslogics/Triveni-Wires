@@ -19,7 +19,7 @@ const base = {
 const before = C.seed(),
   owner = { role: "Owner", outlet: "all" };
 const result = C.apply(before, owner, "invoice", base).state,
-  r = result.invoices[0];
+  r = result.invoices.at(-1);
 assert(C.valid(result));
 assert.equal(r.amount, 1043303);
 assert.equal(r.phone, "919876543210");
@@ -67,4 +67,50 @@ assert.throws(() => D.pdf({ ...r, recipient: "नमूना" }), /Print/);
 require("node:fs").writeFileSync("/tmp/Forecourt_Invoice_Test.pdf", pdf);
 console.log(
   "PASS draft invoice totals, phone/date validation, scoped access, duplicate protection, legacy records, unchanged ledgers, PDF structure and WhatsApp draft",
+);
+
+assert.equal(before.invoices.length, 3);
+assert.deepEqual(before.invoices.map((r) => r.recipientType).sort(), [
+  "Customer",
+  "Dealer",
+  "Vendor",
+]);
+for (const r of before.invoices) {
+  assert.equal(r.phone, "");
+  assert(D.pdf(r).length > 100);
+  assert.equal(new URL(D.whatsapp(r)).pathname, "/");
+}
+const old = C.seed();
+old.invoices = [];
+const loaded = C.apply(old, owner, "loadInvoices", { outlet: "central" }).state;
+assert.equal(loaded.invoices.length, 3);
+assert.deepEqual(C.metrics(loaded, owner), C.metrics(old, owner));
+assert.deepEqual(
+  C.apply(loaded, owner, "loadInvoices", { outlet: "central" }).state,
+  loaded,
+);
+const scoped = C.apply(
+  old,
+  { role: "Manager", outlet: "airport" },
+  "loadInvoices",
+  { outlet: "airport" },
+).state;
+assert.equal(scoped.invoices.length, 1);
+assert.equal(scoped.invoices[0].recipientType, "Vendor");
+const updated = C.apply(loaded, owner, "invoicePhone", {
+  outlet: "central",
+  invoice: loaded.invoices[0].id,
+  phone: "919876543210",
+}).state;
+assert.equal(updated.invoices[0].phone, "919876543210");
+assert.equal(updated.invoices[0].status, "Draft");
+assert.throws(() =>
+  C.apply(loaded, { role: "Manager", outlet: "airport" }, "invoicePhone", {
+    outlet: "central",
+    invoice: loaded.invoices[0].id,
+    phone: "919876543210",
+  }),
+);
+console.log(
+  "PASS three complete sample invoices, safe contact picker, idempotent loading, scoped samples and WhatsApp contact editing",
 );

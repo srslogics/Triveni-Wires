@@ -665,7 +665,7 @@ function invoiceRecord(id) {
   return C.rows(state, "invoices", ctx).find((r) => r.id === id);
 }
 function invoiceSheet(r) {
-  return `<section id="invoice-sheet" class="panel invoice-sheet"><div class="invoice-controls"><strong>Document preview</strong><div class="button-row">${act("invoice-pdf", "Download PDF", `data-id="${r.id}"`, "btn secondary")}${act("invoice-print", "Print / Save PDF", `data-id="${r.id}"`, "btn secondary")}<a class="btn primary" href="${esc(ForecourtDocuments.whatsapp(r))}" target="_blank" rel="noopener noreferrer">Open WhatsApp draft</a></div></div><div class="invoice-paper"><div class="invoice-heading"><div><div class="eyebrow">FORECOURT / DOCUMENTS</div><h2>DRAFT INVOICE</h2><p>Demonstration document · Not a tax invoice</p></div><div><strong>${esc(r.reference)}</strong><p>Date: ${r.date}</p></div></div><div class="invoice-parties"><div><small>FROM</small><h3>${esc(r.seller)}</h3><p>${esc(outlet(r.outlet).name)}</p></div><div><small>BILL TO · ${esc(r.recipientType.toUpperCase())}</small><h3>${esc(r.recipient)}</h3><p>${esc(r.address)}</p><p>${r.phone ? "+" + esc(r.phone) : "No WhatsApp number recorded"}</p></div></div>${table(["Description", "Quantity", "Unit price", "Amount"], [row([esc(r.description), `${r.quantity} ${esc(r.unit)}`, money(r.rate), money(r.amount)])])}<div class="invoice-total">Draft total <strong>${money(r.amount)}</strong></div>${r.note ? `<p class="invoice-note">${esc(r.note)}</p>` : ""}<p class="footnote">Draft only. No tax has been calculated or verified. This document has not posted stock, cash or receivables and is not proof of payment.</p></div></section>`;
+  return `<section id="invoice-sheet" class="panel invoice-sheet"><div class="invoice-controls"><strong>Document preview</strong><div class="button-row">${act("invoice-contact", "Set WhatsApp number", `data-id="${r.id}"`, "btn secondary")}${act("invoice-pdf", "Download PDF", `data-id="${r.id}"`, "btn secondary")}${act("invoice-print", "Print / Save PDF", `data-id="${r.id}"`, "btn secondary")}<a class="btn primary" href="${esc(ForecourtDocuments.whatsapp(r))}" target="_blank" rel="noopener noreferrer">Open WhatsApp draft</a></div></div><div class="invoice-paper"><div class="invoice-heading"><div><div class="eyebrow">FORECOURT / DOCUMENTS</div><h2>DRAFT INVOICE</h2><p>Demonstration document · Not a tax invoice</p></div><div><strong>${esc(r.reference)}</strong><p>Date: ${r.date}</p></div></div><div class="invoice-parties"><div><small>FROM</small><h3>${esc(r.seller)}</h3><p>${esc(outlet(r.outlet).name)}</p></div><div><small>BILL TO · ${esc(r.recipientType.toUpperCase())}</small><h3>${esc(r.recipient)}</h3><p>${esc(r.address)}</p><p>${r.phone ? "+" + esc(r.phone) : "No WhatsApp number recorded"}</p></div></div>${table(["Description", "Quantity", "Unit price", "Amount"], [row([esc(r.description), `${r.quantity} ${esc(r.unit)}`, money(r.rate), money(r.amount)])])}<div class="invoice-total">Draft total <strong>${money(r.amount)}</strong></div>${r.note ? `<p class="invoice-note">${esc(r.note)}</p>` : ""}<p class="footnote">Draft only. No tax has been calculated or verified. This document has not posted stock, cash or receivables and is not proof of payment.</p></div></section>`;
 }
 function invoicesPage() {
   const records = C.rows(state, "invoices", ctx),
@@ -674,7 +674,8 @@ function invoicesPage() {
     title(
       "invoices",
       "Prepare outgoing documents for customers, dealers, vendors or other recipients.",
-      act("invoice", "Create draft invoice", "", "btn primary"),
+      act("load-invoice-samples", "Load sample invoices", "", "btn secondary") +
+        act("invoice", "Create draft invoice", "", "btn primary"),
     ) +
     `<section class="panel invoice-register"><div class="panel-head"><h2>Outgoing draft register</h2><span class="register-label">${records.length} DOCUMENTS</span></div>${table(
       [
@@ -782,11 +783,13 @@ function form(action, selected, id) {
     expense: "Record an expense",
     task: "Add a maintenance task",
     invoice: "Create a draft invoice",
+    invoicePhone: "Set WhatsApp recipient",
   };
   openDialog(
     `<form id="transaction-form" data-kind="${action}" data-revision="${state.revision}" aria-describedby="form-error"><div class="modal-head"><div><div class="eyebrow">${action === "close" ? "CASH RECONCILIATION" : "NEW RECORD"}</div><h2 id="modal-title">${titleMap[action]}</h2></div><button type="button" class="icon-btn" data-action="dismiss" aria-label="Close dialog">${icon("close")}</button></div><div class="modal-body"><label class="field">Outlet<select name="outlet" id="form-outlet">${outletOptions(o)}</select></label><div id="dependent-fields"></div><p class="form-error" id="form-error" role="alert" tabindex="-1"></p></div><div class="modal-footer"><button type="button" data-action="dismiss" class="btn secondary">Cancel</button><button class="btn primary" type="submit">${action === "close" ? "Submit for review" : "Save record"}</button></div></form>`,
   );
   formFields(action, o, id);
+  if (action === "invoicePhone") $("#form-outlet").disabled = true;
 }
 function formFields(action, o, id) {
   const ts = state.tanks.filter((t) => t.outlet === o),
@@ -822,6 +825,19 @@ function formFields(action, o, id) {
       opts.map((p) => `<option>${p}</option>`).join(""),
     );
   let html = "";
+  if (action === "invoicePhone") {
+    const r = invoiceRecord(id);
+    html =
+      `<input type="hidden" name="invoice" value="${esc(r.id)}"><input type="hidden" name="outlet" value="${esc(r.outlet)}">` +
+      field(
+        "WhatsApp number with country code",
+        "phone",
+        "tel",
+        r.phone,
+        'maxlength="24" placeholder="Use your own number for the meeting"',
+      ) +
+      '<p class="footnote">Leave blank to choose a contact in WhatsApp. Saving this number does not send a message.</p>';
+  }
   if (action === "invoice")
     html =
       field(
@@ -1161,6 +1177,17 @@ document.addEventListener("click", (e) => {
     ].includes(a)
   ) {
     form(a, o, id);
+    return;
+  }
+  if (a === "load-invoice-samples") {
+    commit("loadInvoices", {
+      outlet: ctx.outlet === "all" ? "central" : ctx.outlet,
+    });
+    return;
+  }
+  if (a === "invoice-contact") {
+    const r = invoiceRecord(id);
+    if (r) form("invoicePhone", r.outlet, id);
     return;
   }
   if (a === "invoice-view") {

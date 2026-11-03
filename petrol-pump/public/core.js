@@ -207,6 +207,10 @@
             (t.fuel === "Diesel" ? 1 : 0),
       );
     });
+    s.invoices = invoiceSamples().map((r) => ({
+      ...r,
+      id: "IN-" + ++s.sequence,
+    }));
     s.audit.push({
       id: "EV-100",
       time: DAY + "T13:30:00+05:30",
@@ -215,6 +219,56 @@
       text: "Illustrative meeting dataset loaded. No live pump connections.",
     });
     return s;
+  }
+  function invoiceSamples() {
+    return [
+      {
+        outlet: "central",
+        reference: "DEMO-CUST-001",
+        seller: "Central Avenue Fuel Station (sample)",
+        recipient: "Meridian Logistics (sample)",
+        recipientType: "Customer",
+        address: "14 Sample Transport Park, Pune",
+        description: "Diesel supply - sample fleet billing",
+        quantity: 1000,
+        unit: "L",
+        rate: 9175,
+        note: "Sample customer billing. No financial posting or payment confirmation.",
+      },
+      {
+        outlet: "airport",
+        reference: "DEMO-VEND-001",
+        seller: "Airport Road Fuel Station (sample)",
+        recipient: "Transit Tanker Services (sample)",
+        recipientType: "Vendor",
+        address: "8 Sample Industrial Estate, Pune",
+        description: "Handling charge recovery - sample",
+        quantity: 1,
+        unit: "job",
+        rate: 250000,
+        note: "Outgoing sample recovery document to a vendor. This is not a vendor purchase bill.",
+      },
+      {
+        outlet: "highway",
+        reference: "DEMO-DEAL-001",
+        seller: "Highway Junction Fuel Station (sample)",
+        recipient: "Eastern Fuel Dealers (sample)",
+        recipientType: "Dealer",
+        address: "22 Sample Highway Market, Pune",
+        description: "Lubricant cans - sample dealer billing",
+        quantity: 24,
+        unit: "cans",
+        rate: 45000,
+        note: "Sample dealer document. No lubricant inventory, tax or receivable posting.",
+      },
+    ].map((r) => ({
+      ...r,
+      date: "2026-11-03",
+      phone: "",
+      amount: Math.round(r.quantity * r.rate),
+      status: "Draft",
+      time: "2026-11-03T09:00:00+05:30",
+    }));
   }
   function stock(s, id) {
     const t = s.tanks.find((t) => t.id === id);
@@ -306,6 +360,8 @@
       error("This outlet is outside the selected workspace.");
     const permission = {
       invoice: ["Owner", "Manager", "Accountant"],
+      loadInvoices: ["Owner", "Manager", "Accountant"],
+      invoicePhone: ["Owner", "Manager", "Accountant"],
       sale: ["Owner", "Manager"],
       receipt: ["Owner", "Manager"],
       dip: ["Owner", "Manager"],
@@ -543,6 +599,41 @@
         status: "Open",
       });
       message = "Maintenance task added";
+    } else if (action === "loadInvoices") {
+      if (!s.invoices) s.invoices = [];
+      const candidates = invoiceSamples().filter(
+        (r) =>
+          (ctx.role === "Owner" && ctx.outlet === "all") || r.outlet === o.id,
+      );
+      let added = 0;
+      for (const r of candidates) {
+        if (
+          !s.invoices.some(
+            (x) => x.reference.toLowerCase() === r.reference.toLowerCase(),
+          )
+        ) {
+          s.invoices.push({ ...r, id: id("IN") });
+          added++;
+        }
+      }
+      if (!added)
+        return {
+          state,
+          message: "Sample invoices are already loaded for this workspace",
+        };
+      message = added + " sample invoice(s) added; existing records preserved";
+    } else if (action === "invoicePhone") {
+      const r = (s.invoices || []).find(
+        (r) => r.id === input.invoice && r.outlet === o.id,
+      );
+      if (!r) error("Choose an invoice in this outlet.");
+      const phone = String(input.phone || "").replace(/[\s()+-]/g, "");
+      if (phone && !/^[1-9]\d{7,14}$/.test(phone))
+        error(
+          "Enter the country code and number, or leave it blank for the recipient picker.",
+        );
+      r.phone = phone;
+      message = "WhatsApp recipient updated; no message sent";
     } else if (action === "invoice") {
       const reference = txt(input.reference, "an invoice reference");
       if (
